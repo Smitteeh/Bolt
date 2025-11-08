@@ -1,6 +1,6 @@
 # Stats System - Player stat allocation and progression
 
-function init:
+function rb:stats_init:
     scoreboard players set @s rb.stat.points 10
     scoreboard players set @s rb.level 1
     scoreboard players set @s rb.stat.str 5
@@ -10,19 +10,19 @@ function init:
     function rb:stats/recalculate
 
 
-function stats_loop:
+function rb:stats_loop:
     execute as @a run function rb:stats/update
     schedule function rb:stats/stats_loop 5t
 
 
-function update:
+function rb:update:
     execute if score @s rb.stat.str matches 1.. run function rb:stats/apply_strength
     execute if score @s rb.stat.vit matches 1.. run function rb:stats/apply_vitality
     execute if score @s rb.stat.int matches 1.. run function rb:stats/apply_intelligence
     execute if score @s rb.stat.dex matches 1.. run function rb:stats/apply_dexterity
 
 
-function apply_strength:
+function rb:apply_strength:
     scoreboard players operation @s rb.damage.base = @s rb.stat.str
     scoreboard players set #2 rb.stat.points 2
     scoreboard players operation @s rb.damage.base *= #2 rb.stat.points
@@ -32,7 +32,7 @@ function apply_strength:
     scoreboard players add @s rb.amp.physical 100
 
 
-function apply_vitality:
+function rb:apply_vitality:
     scoreboard players operation @s rb.health.max = @s rb.stat.vit
     scoreboard players set #10 rb.stat.points 10
     scoreboard players operation @s rb.health.max *= #10 rb.stat.points
@@ -40,7 +40,7 @@ function apply_vitality:
     scoreboard players operation @s rb.defence.base = @s rb.stat.vit
 
 
-function apply_intelligence:
+function rb:apply_intelligence:
     scoreboard players operation @s rb.amp.magical = @s rb.stat.int
     scoreboard players set #10 rb.stat.points 10
     scoreboard players operation @s rb.amp.magical *= #10 rb.stat.points
@@ -50,7 +50,7 @@ function apply_intelligence:
     scoreboard players operation @s rb.res.magical *= #2 rb.stat.points
 
 
-function apply_dexterity:
+function rb:apply_dexterity:
     scoreboard players set @s rb.cooldown.end 60
     scoreboard players operation #dex_reduction rb.stat.points = @s rb.stat.dex
     scoreboard players set #5 rb.stat.points 5
@@ -62,14 +62,14 @@ function apply_dexterity:
     scoreboard players operation @s rb.res.physical *= #2 rb.stat.points
 
 
-function recalculate:
+function rb:recalculate:
     function rb:stats/apply_strength
     function rb:stats/apply_vitality
     function rb:stats/apply_intelligence
     function rb:stats/apply_dexterity
 
 
-function allocate/strength:
+function rb:allocate/strength:
     execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.str 1
     execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
     execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
@@ -77,7 +77,7 @@ function allocate/strength:
     execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
 
 
-function allocate/vitality:
+function rb:allocate/vitality:
     execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.vit 1
     execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
     execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
@@ -85,7 +85,7 @@ function allocate/vitality:
     execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
 
 
-function allocate/intelligence:
+function rb:allocate/intelligence:
     execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.int 1
     execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
     execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
@@ -93,7 +93,7 @@ function allocate/intelligence:
     execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
 
 
-function allocate/dexterity:
+function rb:allocate/dexterity:
     execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.dex 1
     execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
     execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
@@ -101,7 +101,7 @@ function allocate/dexterity:
     execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
 
 
-function level_up:
+function rb:level_up:
     scoreboard players add @s rb.level 1
     scoreboard players add @s rb.stat.points 5
     title @s title [{"text":"LEVEL UP!","color":"gold","bold":true}]
@@ -112,7 +112,7 @@ function level_up:
     tellraw @s [{"text":"+5 Stat Points","color":"green"}]
 
 
-function show_stats:
+function rb:show_stats:
     tellraw @s [{"text":"━━━━━ YOUR STATS ━━━━━","color":"gold","bold":true}]
     tellraw @s [{"text":"Level: ","color":"gray"},{"score":{"name":"@s","objective":"rb.level"},"color":"gold"}]
     tellraw @s [{"text":"Available Points: ","color":"gray"},{"score":{"name":"@s","objective":"rb.stat.points"},"color":"green"}]

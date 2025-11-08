@@ -1,6 +1,6 @@
 # NPC System - Interactive NPCs with Dialog
 
-function init_dialogs:
+function rb:init_dialogs:
     data merge storage npc:chats {
         guard: {
             name: "Town Guard",
@@ -21,29 +21,29 @@ function init_dialogs:
     }
 
 
-function create_guard:
+function rb:create_guard:
     summon armor_stand ~ ~ ~ {Tags:["npc","npc_guard"],CustomName:'[{"text":"Town Guard","color":"yellow","bold":true}]',CustomNameVisible:1b,NoGravity:1b,Invulnerable:1b}
     execute at @e[tag=npc_guard,tag=!npc_init] run summon interaction ~ ~ ~ {Tags:["npc_interaction","guard_interaction"],width:0.6f,height:2.0f}
     tag @e[tag=npc_guard] add npc_init
 
 
-function create_merchant:
+function rb:create_merchant:
     summon armor_stand ~ ~ ~ {Tags:["npc","npc_merchant"],CustomName:'[{"text":"Merchant","color":"gold","bold":true}]',CustomNameVisible:1b,NoGravity:1b,Invulnerable:1b}
     execute at @e[tag=npc_merchant,tag=!npc_init] run summon interaction ~ ~ ~ {Tags:["npc_interaction","merchant_interaction"],width:0.6f,height:2.0f}
     tag @e[tag=npc_merchant] add npc_init
 
 
-function interact:
+function rb:interact:
     execute if entity @s[tag=guard_interaction] run function rb:npc/dialog_guard
     execute if entity @s[tag=merchant_interaction] run function rb:npc/dialog_merchant
     data remove entity @s interaction
 
 
-function dialog_guard:
+function rb:dialog_guard:
     tellraw @p [{"text":"[Guard] ","color":"yellow","bold":true},{"text":"Halt! State your business, traveler.","color":"white"}]
     playsound minecraft:entity.villager.ambient player @p ~ ~ ~ 1 1.2
 
 
-function dialog_merchant:
+function rb:dialog_merchant:
     tellraw @p [{"text":"[Merchant] ","color":"gold","bold":true},{"text":"Welcome! Looking to buy or sell?","color":"white"}]
     playsound minecraft:entity.villager.ambient player @p ~ ~ ~ 1 1.2

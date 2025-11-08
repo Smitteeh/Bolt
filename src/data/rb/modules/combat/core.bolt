@@ -6,7 +6,7 @@
 # INITIALIZATION
 # ============================================================================
 
-function init_player_combat:
+function rb:init_player_combat:
     scoreboard players set @s rb.health.current 100
     scoreboard players set @s rb.health.max 100
     scoreboard players set @s rb.damage.base 10
@@ -22,7 +22,7 @@ function init_player_combat:
 # DAMAGE CALCULATION
 # ============================================================================
 
-function init_combat:
+function rb:init_combat:
     """Triggered by custom enchantment on post_attack"""
     # Store attacker and victim
     tag @s add attacker
@@ -36,7 +36,7 @@ function init_combat:
     tag @e[tag=victim] remove victim
 
 
-function hurt_entity:
+function rb:hurt_entity:
     """
     Calculate and apply damage to victim based on attacker's stats.
     Much cleaner than the original mcfunction version with Bolt's operators!
@@ -87,7 +87,7 @@ function hurt_entity:
 # ATTACK COOLDOWN SYSTEM
 # ============================================================================
 
-function attack_cooldown:
+function rb:attack_cooldown:
     """
     Visual attack charge system - charges over time based on attack speed.
     Shows charging progress on action bar.
@@ -100,12 +100,12 @@ function attack_cooldown:
     execute if score @s cooldown_end > @s current_time run function rb:combat/cooldown_charging
 
 
-function cooldown_ready:
+function rb:cooldown_ready:
     """Display ready indicator"""
     title @s actionbar [{"text":"⚔ ","color":"green"},{"text":"READY","color":"green","bold":true},{"text":" ⚔","color":"green"}]
 
 
-function cooldown_charging:
+function rb:cooldown_charging:
     """Display charge progress bar"""
     # Calculate progress percentage
     scoreboard players operation #time_elapsed dmg_calculation = @s current_time
@@ -126,7 +126,7 @@ function cooldown_charging:
 # HEALTH SYSTEM
 # ============================================================================
 
-function health_bar_update:
+function rb:health_bar_update:
     """Update visual health bar using text_display entities"""
     # Find or create health bar display
     execute unless entity @e[type=text_display,tag=health_bar,distance=..1] run summon text_display ~ ~2.5 ~ {Tags:["health_bar","new"],billboard:"vertical",text:'{"text":"❤ 100/100","color":"red"}'}
@@ -140,7 +140,7 @@ function health_bar_update:
     execute if score @s current_health matches 51.. run data modify entity @e[type=text_display,tag=health_bar,distance=..2,limit=1] text set value '{"score":{"name":"@p","objective":"rb.health.current"},"color":"red"}'
 
 
-function health_regen_loop:
+function rb:health_regen_loop:
     """Passive health regeneration - runs every second"""
     # Regen 1 HP per second for players not in combat
     execute as @a unless score @s current_health >= @s max_health run scoreboard players add @s current_health 1
@@ -153,7 +153,7 @@ function health_regen_loop:
 # DEATH & RESPAWN
 # ============================================================================
 
-function on_death:
+function rb:player_on_death:
     """Handle player death"""
     # Set health to 0
     scoreboard players set @s current_health 0
@@ -172,7 +172,7 @@ function on_death:
     execute at @s run particle minecraft:explosion ~ ~1 ~ 0.5 0.5 0.5 0.1 10
 
 
-function death_timer:
+function rb:death_timer:
     """Count down death timer"""
     scoreboard players remove @s death_timer 1
     scoreboard players operation @s respawn_time = @s death_timer
@@ -187,7 +187,7 @@ function death_timer:
     execute if score @s death_timer matches 0 run function rb:combat/respawn
 
 
-function respawn:
+function rb:respawn:
     """Respawn the player"""
     # Reset health
     scoreboard players operation @s current_health = @s max_health
@@ -210,7 +210,7 @@ function respawn:
 # DISPLAY UTILITIES
 # ============================================================================
 
-function display_damage:
+function rb:display_damage:
     """Show damage number above damaged entity"""
     # Create damage indicator
     summon text_display ~ ~1 ~ {Tags:["damage_indicator","new"],billboard:"vertical",text:'{"score":{"name":"#final_dmg","objective":"rb.dmg.calc"},"color":"red","bold":true}',Rotation:[0.0f,0.0f]}

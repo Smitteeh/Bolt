@@ -1,6 +1,6 @@
 # Enemy System - Spawn custom enemies with stats
 
-function init:
+function rb:enemies_init:
     data merge storage enemies:data {
         goblin: {name: "Goblin", health: 20.0, damage: 5},
         orc: {name: "Orc Warrior", health: 40.0, damage: 10},
@@ -8,7 +8,7 @@ function init:
     }
 
 
-function spawn/goblin:
+function rb:spawn/goblin:
     summon zombie ~ ~ ~ {CustomName:'[{"text":"Goblin","color":"green"}]',CustomNameVisible:1b,Tags:["rb_enemy","goblin","new_enemy"],attributes:[{id:"generic.max_health",base:20.0},{id:"generic.scale",base:0.8},{id:"generic.movement_speed",base:0.28}],Health:20.0f}
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 20
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.current 20
@@ -18,7 +18,7 @@ function spawn/goblin:
     tag @e[tag=new_enemy] remove new_enemy
 
 
-function spawn/orc:
+function rb:spawn/orc:
     summon zombie ~ ~ ~ {CustomName:'[{"text":"Orc Warrior","color":"red","bold":true}]',CustomNameVisible:1b,Tags:["rb_enemy","orc","new_enemy"],attributes:[{id:"generic.max_health",base:40.0},{id:"generic.scale",base:1.2},{id:"generic.movement_speed",base:0.25},{id:"generic.knockback_resistance",base:0.5}],Health:40.0f,ArmorItems:[{id:"leather_boots",count:1},{id:"leather_leggings",count:1},{id:"iron_chestplate",count:1},{id:"iron_helmet",count:1}],HandItems:[{id:"iron_axe",count:1},{}]}
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 40
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.current 40
@@ -28,7 +28,7 @@ function spawn/orc:
     tag @e[tag=new_enemy] remove new_enemy
 
 
-function spawn/dark_mage:
+function rb:spawn/dark_mage:
     summon witch ~ ~ ~ {CustomName:'[{"text":"Dark Mage","color":"dark_purple","bold":true}]',CustomNameVisible:1b,Tags:["rb_enemy","dark_mage","new_enemy","magical_enemy"],attributes:[{id:"generic.max_health",base:30.0},{id:"generic.movement_speed",base:0.26}],Health:30.0f}
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 30
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.current 30
@@ -40,12 +40,12 @@ function spawn/dark_mage:
     tag @e[tag=new_enemy] remove new_enemy
 
 
-function tick:
+function rb:enemies_tick:
     execute as @e[type=text_display,tag=enemy_health_bar] at @s run data modify entity @s text set value '{"score":{"name":"@e[tag=rb_enemy,limit=1,sort=nearest]","objective":"rb.health.current"},"color":"red"}'
     execute as @e[tag=rb_enemy] if score @s rb.health.current matches ..0 at @s run function rb:enemies/on_death
 
 
-function on_death:
+function rb:on_death:
     particle explosion ~ ~1 ~ 0.5 0.5 0.5 0 5
     playsound minecraft:entity.generic.death hostile @a ~ ~ ~ 1 0.8
     kill @e[type=text_display,tag=enemy_health_bar,distance=..3]

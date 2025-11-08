@@ -1,24 +1,23 @@
 # Realms Beyond - Load Function
 # Initializes all systems on datapack load
-
-function load:
+function rb:loading:
     # Display load message
     tellraw @a [{"text":"[Realms Beyond] ","color":"gold","bold":true},{"text":"Datapack loaded successfully!","color":"green"}]
 
     # Initialize scoreboards
-    function rb:scoreboards/init
+    function rb:scoreboards_inits
 
     # Initialize storage
-    function rb:storage/init
+    function rb:storage_inits
 
     # Initialize weapons
-    function rb:weapons/init
+    function rb:weapons_init
 
     # Initialize abilities
-    function rb:abilities/init
+    function rb:abilities/abilities_init
 
     # Initialize enemies
-    function rb:enemies/init
+    function rb:enemies_init
 
     # Schedule continuous loops
     schedule function rb:stats/stats_loop 5t

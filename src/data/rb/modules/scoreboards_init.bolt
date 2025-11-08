@@ -1,0 +1,61 @@
+# Scoreboard Initialization
+# Creates all scoreboards used by the datapack
+
+function rb:scoreboards_inits:
+    # Player identification
+    scoreboard objectives add player_id dummy "Player ID"
+
+    # Combat system
+    scoreboard objectives add rb.health.current dummy "Current Health"
+    scoreboard objectives add rb.health.max dummy "Max Health"
+    scoreboard objectives add rb.damage.base dummy "Base Damage"
+    scoreboard objectives add rb.defence.base dummy "Base Defence"
+    scoreboard objectives add rb.amp.physical dummy "Physical Amplifier"
+    scoreboard objectives add rb.amp.magical dummy "Magical Amplifier"
+    scoreboard objectives add rb.res.physical dummy "Physical Resistance"
+    scoreboard objectives add rb.res.magical dummy "Magical Resistance"
+    scoreboard objectives add rb.dmg.calc dummy "Damage Calculation"
+    scoreboard objectives add rb.dmg.type dummy "Damage Type"
+    scoreboard objectives add rb.cooldown.end dummy "Cooldown End Time"
+    scoreboard objectives add rb.time.current dummy "Current Game Time"
+    scoreboard objectives add rb.death.timer dummy "Death Timer"
+    scoreboard objectives add rb.respawn.time dummy "Respawn Time"
+
+    # Abilities system
+    scoreboard objectives add rb.ability.cd dummy "Ability Cooldown"
+    scoreboard objectives add rb.casting dummy "Is Casting"
+    scoreboard objectives add rb.spell.charge dummy "Spell Charge"
+
+    # Stats system
+    scoreboard objectives add rb.stat.points dummy "Stat Points"
+    scoreboard objectives add rb.stat.str dummy "Strength"
+    scoreboard objectives add rb.stat.vit dummy "Vitality"
+    scoreboard objectives add rb.stat.int dummy "Intelligence"
+    scoreboard objectives add rb.stat.dex dummy "Dexterity"
+    scoreboard objectives add rb.level dummy "Player Level"
+
+    # NPC system
+    scoreboard objectives add rb.npc.id dummy "NPC ID"
+    scoreboard objectives add rb.npc.dialog dummy "Dialog Stage"
+
+    # Character selection
+    scoreboard objectives add rb.select.timer dummy "Selection Timer"
+
+    # Enemy system
+    scoreboard objectives add rb.enemy.level dummy "Enemy Level"
+
+    # Utilities
+    scoreboard objectives add forloop.counter dummy "For-Loop Counter"
+    scoreboard objectives add particle.math dummy "Particle Math"
+
+    # Constants
+    scoreboard players set #100 rb.dmg.calc 100
+    scoreboard players set #20 rb.dmg.calc 20
+    scoreboard players set #2 rb.dmg.calc 2
+    scoreboard players set #1 rb.dmg.calc 1
+    scoreboard players set #0 rb.dmg.calc 0
+
+    # Global player ID counter
+    scoreboard players set #next_id player_id 1
+
+    tellraw @a [{"text":"[RB] ","color":"gold"},{"text":"Scoreboards initialized","color":"green"}]

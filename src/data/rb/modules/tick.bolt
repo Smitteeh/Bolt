@@ -1,7 +1,6 @@
 # Realms Beyond - Tick Function
 # Main game loop - runs every tick
-
-function tick:
+function rb:main_tick:
     # First join detection
     execute as @a unless score @s player_id matches 0.. run function rb:player/first_join
 

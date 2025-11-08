@@ -1,28 +1,30 @@
 {
-    "name": "Realms Beyond",
-    "description": "Adventure RPG Datapack - Converted to Bolt",
-    "author": "Smitteeh",
-    "version": "2.0.0",
-    "require": [
-        "bolt"
-    ],
-    "data_pack": {
-        "load": ["src"],
-        "name": "Realms Beyond"
-    },
-    "resource_pack": {
-        "load": ["src"]
-    },
-    "pipeline": ["mecha"],
-    "output": "build",
-    "meta": {
-        "bolt": {
-            "entrypoint": ["bolt:main", "rb:load", "rb:tick"]
-        },
-        "mecha": {
-            "formatting": {
-                "indentation": "  "
-            }
-        }
+  "name": "Realms Beyond",
+  "description":"Adventure RPG Datapack",
+  "require": ["bolt"],
+  "data_pack": {
+    "load": ["src"]
+  },
+  "pipeline": ["mecha", "bolt"],
+  "output": "build",
+  "meta": {
+    "bolt": {
+      "entrypoint": [
+        "rb:load",
+        "rb:tick",
+        "rb:scoreboards_init",
+        "rb:storage_init",
+        "rb:stats",
+        "rb:weapons",
+        "rb:enemies",
+        "rb:character_selection",
+        "rb:abilities/core",
+        "rb:combat/core",
+        "rb:npc/core",
+        "rb:particles/generators",
+        "rb:player/first_join",
+        "rb:utils/forloop"
+      ]
     }
+  }
 }

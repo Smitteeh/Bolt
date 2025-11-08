@@ -1,7 +1,7 @@
 # Character Selection System
 # Choose class with visual dome effects
 
-function setup_zones:
+function rb:setup_zones:
     # Terra (Earth) - Green zone at 0,64,0
     execute positioned 0 64 0 run summon marker ~ ~ ~ {Tags:["class_zone","zone_terra"]}
     execute positioned 0 67 0 run summon text_display ~ ~ ~ {Tags:["class_zone_display"],billboard:"vertical",text:'[{"text":"TERRA","color":"green","bold":true}]',transformation:{scale:[3f,3f,3f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f]}}
@@ -22,38 +22,38 @@ function setup_zones:
     tellraw @a [{"text":"Class selection zones created!","color":"green"}]
 
 
-function tick:
+function rb:character_selection_tick:
     execute if entity @e[type=marker,tag=zone_terra,distance=..5] run function rb:character_selection/check_terra
     execute if entity @e[type=marker,tag=zone_ignis,distance=..5] run function rb:character_selection/check_ignis
     execute if entity @e[type=marker,tag=zone_mechanica,distance=..5] run function rb:character_selection/check_mechanica
     execute if entity @e[type=marker,tag=zone_arcanis,distance=..5] run function rb:character_selection/check_arcanis
 
 
-function check_terra:
+function rb:check_terra:
     execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
     execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Terra...","color":"green"}]
     execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_terra
 
 
-function check_ignis:
+function rb:check_ignis:
     execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
     execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Ignis...","color":"red"}]
     execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_ignis
 
 
-function check_mechanica:
+function rb:check_mechanica:
     execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
     execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Mechanica...","color":"aqua"}]
     execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_mechanica
 
 
-function check_arcanis:
+function rb:check_arcanis:
     execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
     execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Arcanis...","color":"light_purple"}]
     execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_arcanis
 
 
-function select_terra:
+function rb:select_terra:
     tag @s add class_selected
     tag @s add class_terra
     title @s title [{"text":"TERRA","color":"green","bold":true}]
@@ -65,7 +65,7 @@ function select_terra:
     playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
 
 
-function select_ignis:
+function rb:select_ignis:
     tag @s add class_selected
     tag @s add class_ignis
     title @s title [{"text":"IGNIS","color":"red","bold":true}]
@@ -77,7 +77,7 @@ function select_ignis:
     playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
 
 
-function select_mechanica:
+function rb:select_mechanica:
     tag @s add class_selected
     tag @s add class_mechanica
     title @s title [{"text":"MECHANICA","color":"aqua","bold":true}]
@@ -89,7 +89,7 @@ function select_mechanica:
     playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
 
 
-function select_arcanis:
+function rb:select_arcanis:
     tag @s add class_selected
     tag @s add class_arcanis
     title @s title [{"text":"ARCANIS","color":"light_purple","bold":true}]
@@ -101,7 +101,7 @@ function select_arcanis:
     playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
 
 
-function particle_loop:
+function rb:particle_loop:
     execute at @e[type=marker,tag=zone_terra] run function rb:particles/create_dome_terra
     execute at @e[type=marker,tag=zone_ignis] run function rb:particles/create_dome_ignis
     execute at @e[type=marker,tag=zone_mechanica] run function rb:particles/create_dome_mechanica

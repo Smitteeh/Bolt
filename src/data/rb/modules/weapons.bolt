@@ -4,7 +4,7 @@
 # WEAPON INITIALIZATION
 # ============================================================================
 
-function init:
+function rb:weapons_init:
     """Initialize weapon data - generates all weapons from templates"""
     # Weapon tiers with scaling stats
     data merge storage weapons:data {
@@ -31,7 +31,7 @@ function init:
 # WEAPON GIVING FUNCTIONS
 # ============================================================================
 
-function give/wooden_sword_1:
+function rb:give/wooden_sword_1:
     """Give Wooden Sword +0"""
     give @s wooden_sword[
         custom_name='{"text":"Wooden Sword","color":"gray","italic":false}',
@@ -46,7 +46,7 @@ function give/wooden_sword_1:
     ]
 
 
-function give/iron_sword_3:
+function rb:give/iron_sword_3:
     """Give Iron Sword +2"""
     give @s iron_sword[
         custom_name='{"text":"Iron Sword +2","color":"aqua","italic":false,"bold":true}',
@@ -62,7 +62,7 @@ function give/iron_sword_3:
     ]
 
 
-function give/diamond_sword_4:
+function rb:give/diamond_sword_4:
     """Give Diamond Sword +3 (Legendary)"""
     give @s diamond_sword[
         custom_name='{"text":"Legendary Diamond Sword +3","color":"gold","italic":false,"bold":true}',
@@ -83,7 +83,7 @@ function give/diamond_sword_4:
     ]
 
 
-function give/magic_staff:
+function rb:give/magic_staff:
     """Give Magic Staff (Magical Damage)"""
     give @s blaze_rod[
         custom_name='{"text":"Arcane Staff","color":"light_purple","italic":false,"bold":true}',
@@ -109,7 +109,7 @@ function give/magic_staff:
 # WEAPON STATS LOADING
 # ============================================================================
 
-function load_weapon_stats:
+function rb:load_weapon_stats:
     """Load weapon stats from held item into scoreboard"""
     # Get weapon data from held item
     execute store result score @s base_damage run data get entity @s SelectedItem.components.minecraft:custom_data.base_damage
@@ -123,7 +123,7 @@ function load_weapon_stats:
 # WEAPON CRAFTING (Optional Extension)
 # ============================================================================
 
-function craft/upgrade_weapon:
+function rb:craft/upgrade_weapon:
     """Upgrade a weapon to next level"""
     # Check if holding weapon
     execute unless data entity @s SelectedItem.components.minecraft:custom_data.weapon_level run return fail
@@ -154,6 +154,6 @@ function craft/upgrade_weapon:
     tellraw @s [{"text":"Weapon upgraded to level ","color":"green"},{"score":{"name":"#level","objective":"npc.id"},"color":"gold","bold":true},{"text":"!","color":"green"}]
 
 
-function apply_upgrade:
+function rb:apply_upgrade:
     """Apply upgrade values to held weapon"""
     $item modify entity @s weapon.mainhand {function:"set_components",components:{"minecraft:custom_data":{weapon_level:$(new_level),base_damage:$(new_damage)}}}

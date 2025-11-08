@@ -1,0 +1,14 @@
+# Storage Initialization
+
+function rb:storage_inits:
+    data merge storage abilities:stats {}
+    data merge storage abilities:temp {}
+    data merge storage npc:chats {}
+    data merge storage temp:move {}
+    data merge storage weapons:data {}
+    data merge storage weapons:temp {}
+    data merge storage enemies:data {}
+    data merge storage forloop:input {array:[], callback:""}
+    data merge storage forloop:temp {index:0}
+    data merge storage rb:players {cooldowns:{}}
+    tellraw @a [{"text":"[RB] ","color":"gold"},{"text":"Storage initialized","color":"green"}]

@@ -3,14 +3,14 @@
 # either compile-time generation or manual unrolling in Bolt
 
 # Example of how to use execute-based iteration
-function example_loop:
+function rb:example_loop:
     # This demonstrates iterate-execute pattern
     # For actual dynamic loops, use the original rb forloop system
     scoreboard players set #counter forloop.counter 0
     function rb:utils/forloop/iterate
 
 
-function iterate:
+function rb:iterate:
     # Increment counter
     scoreboard players add #counter forloop.counter 1
 

@@ -1,5 +1,0 @@
-# Realms Beyond - Entry Point
-# Bolt requires an entrypoint - this file satisfies that requirement
-
-# All actual game logic is in the rb: namespace
-# The rb:functions/load and rb:functions/tick files contain the real logic
