@@ -1,0 +1,90 @@
+# Main spell casting function - checks cooldown first
+function bolt:using_spell:
+    advancement revoke @s only rb:using_spell
+
+    # Store player ID and spell name
+    execute store result storage abilities:temp player_id int 1 run scoreboard players get @s player_id
+    data modify storage abilities:temp spell set from entity @s SelectedItem.components.minecraft:custom_data.spell
+    
+    # Get current game time
+    execute store result storage abilities:temp current_time int 1 run time query gametime
+    
+    # Check if spell is off cooldown
+    function bolt:check_cooldown with storage abilities:temp
+
+# Check if the spell is ready to cast
+function bolt:check_cooldown:
+    # Try to get the cooldown end time for this player's spell
+    $execute store success storage abilities:temp has_cooldown byte 1 run data get storage bolt:players cooldowns.$(player_id).$(spell)
+    
+    # If no cooldown exists, cast immediately
+    execute if data storage abilities:temp {has_cooldown:0b} run function bolt:cast_spell_with_cooldown
+    
+    # If cooldown exists, get it and compare
+    $execute if data storage abilities:temp {has_cooldown:1b} run data modify storage abilities:temp cooldown_end set from storage bolt:players cooldowns.$(player_id).$(spell)
+    execute if data storage abilities:temp {has_cooldown:1b} run function bolt:compare_cooldown with storage abilities:temp
+
+# Compare current time with cooldown end time
+function bolt:compare_cooldown:
+    # Store both values in scoreboard for comparison
+    execute store result score #current_time bolt.temp run data get storage abilities:temp current_time
+    execute store result score #cooldown_end bolt.temp run data get storage abilities:temp cooldown_end
+    
+    # If current time >= cooldown end time, spell is ready
+    execute if score #current_time bolt.temp >= #cooldown_end bolt.temp run function bolt:cast_spell_with_cooldown
+    
+    # If current time < cooldown end time, spell is on cooldown
+    execute if score #current_time bolt.temp < #cooldown_end bolt.temp run function bolt:spell_on_cooldown
+
+# Cast the spell and set new cooldown
+function bolt:cast_spell_with_cooldown:
+    # Get spell stats
+    function bolt:get_spell_stats with storage abilities:temp
+    
+    # Cast the actual spell
+    function bolt:cast_spell with storage abilities:temp
+    
+    # Calculate and set cooldown
+    function bolt:set_cooldown with storage abilities:temp
+
+# Get spell cooldown duration from stats
+function bolt:get_spell_stats:
+    $data modify storage abilities:temp cooldown set from storage abilities:stats $(spell).cooldown
+
+# Cast the spell
+function bolt:cast_spell:
+    $function bolt:abilities/$(spell)
+
+# Set the cooldown end time
+function bolt:set_cooldown:
+    # Calculate: current_time + cooldown = cooldown_end
+    execute store result score #cooldown bolt.temp run data get storage abilities:temp cooldown
+    execute store result score #current_time bolt.temp run data get storage abilities:temp current_time
+    scoreboard players operation #cooldown_end bolt.temp = #current_time bolt.temp
+    scoreboard players operation #cooldown_end bolt.temp += #cooldown bolt.temp
+    
+    # Store the cooldown end time
+    $execute store result storage bolt:players cooldowns.$(player_id).$(spell) int 1 run scoreboard players get #cooldown_end bolt.temp
+
+# Display cooldown message
+function bolt:spell_on_cooldown:
+    # Calculate remaining time
+    scoreboard players operation #remaining bolt.temp = #cooldown_end bolt.temp
+    scoreboard players operation #remaining bolt.temp -= #current_time bolt.temp
+    
+    # Convert ticks to seconds (divide by 20)
+    scoreboard players set #20 bolt.temp 20
+    scoreboard players operation #remaining bolt.temp /= #20 bolt.temp
+    
+    # Display message with remaining time
+    $tellraw @s [{"text":"[Spells] ","color":"red"},{"text":"$(spell)","color":"yellow"},{"text":" is on cooldown! ","color":"red"},{"score":{"name":"#remaining","objective":"bolt.temp"},"color":"yellow"},{"text":"s remaining","color":"red"}]
+
+# Example spell abilities
+function bolt:abilities/earth_wall:
+    say Casting Earth Wall!
+    # execute at @s run summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["earth_wall_marker"]}
+    # Add your earth wall logic here
+
+function bolt:abilities/fireball:
+    say Casting Fireball!
+    # execute at @s run summon minecraft:fireball ^ ^ ^2 {direction:[0.0,-0.1,0.0]}
