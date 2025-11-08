@@ -1,0 +1,8 @@
+# Main entry point for RB datapack
+# This file exists to satisfy Bolt's entrypoint requirement
+
+# Import all our systems by calling their functions
+from ./functions/load import load
+from ./functions/tick import tick
+
+# These will be registered as rb:load and rb:tick
