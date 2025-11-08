@@ -1,23 +1,33 @@
-# Enemy System - Spawn custom enemies with stats
-
-function rb:enemies_init:
-    data merge storage enemies:data {
-        goblin: {name: "Goblin", health: 20.0, damage: 5},
-        orc: {name: "Orc Warrior", health: 40.0, damage: 10},
-        dark_mage: {name: "Dark Mage", health: 30.0, damage: 12}
+# ==============================================================================
+# GOBLIN - Basic melee enemy
+# ==============================================================================
+function rb:spawn/goblin:
+    summon minecraft:husk ~ ~ ~ {
+        Tags:["rb_enemy","goblin","new_enemy"],
+        CustomNameVisible:0b,
+        Passengers:[{
+            id:"minecraft:text_display",
+            Tags:["enemy_health_bar"],
+            billboard:"vertical",
+            background:0,
+            # translation:[0f,2.2f,0f],
+            text:[{"text":"♥♥♥♥♥♥♥♥♥♥","bold":false,"color":"dark_green"}," ",{"text":"20/20","color":"dark_green"}],
+            view_range: 10
+        }]
     }
 
-
-function rb:spawn/goblin:
-    summon zombie ~ ~ ~ {CustomName:'[{"text":"Goblin","color":"green"}]',CustomNameVisible:1b,Tags:["rb_enemy","goblin","new_enemy"],attributes:[{id:"generic.max_health",base:20.0},{id:"generic.scale",base:0.8},{id:"generic.movement_speed",base:0.28}],Health:20.0f}
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 20
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.current 20
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.damage.base 5
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.defence.base 2
-    execute as @e[tag=new_enemy] at @s run summon text_display ~ ~2.3 ~ {Tags:["enemy_health_bar"],billboard:"vertical",text:'{"score":{"name":"@e[tag=new_enemy,limit=1]","objective":"rb.health.current"},"color":"red"}'}
+
     tag @e[tag=new_enemy] remove new_enemy
 
 
+
+# ==============================================================================
+# ORC WARRIOR - Armored melee enemy
+# ==============================================================================
 function rb:spawn/orc:
     summon zombie ~ ~ ~ {CustomName:'[{"text":"Orc Warrior","color":"red","bold":true}]',CustomNameVisible:1b,Tags:["rb_enemy","orc","new_enemy"],attributes:[{id:"generic.max_health",base:40.0},{id:"generic.scale",base:1.2},{id:"generic.movement_speed",base:0.25},{id:"generic.knockback_resistance",base:0.5}],Health:40.0f,ArmorItems:[{id:"leather_boots",count:1},{id:"leather_leggings",count:1},{id:"iron_chestplate",count:1},{id:"iron_helmet",count:1}],HandItems:[{id:"iron_axe",count:1},{}]}
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 40
@@ -28,6 +38,9 @@ function rb:spawn/orc:
     tag @e[tag=new_enemy] remove new_enemy
 
 
+# ==============================================================================
+# DARK MAGE - Magical enemy
+# ==============================================================================
 function rb:spawn/dark_mage:
     summon witch ~ ~ ~ {CustomName:'[{"text":"Dark Mage","color":"dark_purple","bold":true}]',CustomNameVisible:1b,Tags:["rb_enemy","dark_mage","new_enemy","magical_enemy"],attributes:[{id:"generic.max_health",base:30.0},{id:"generic.movement_speed",base:0.26}],Health:30.0f}
     execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 30
@@ -40,11 +53,51 @@ function rb:spawn/dark_mage:
     tag @e[tag=new_enemy] remove new_enemy
 
 
+# ==============================================================================
+# SKELETON ARCHER - Ranged enemy
+# ==============================================================================
+function rb:spawn/skeleton_archer:
+    summon skeleton ~ ~ ~ {CustomName:'[{"text":"Skeleton Archer","color":"gray"}]',CustomNameVisible:1b,Tags:["rb_enemy","skeleton_archer","new_enemy","ranged_enemy"],attributes:[{id:"generic.max_health",base:25.0},{id:"generic.movement_speed",base:0.27}],Health:25.0f}
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 25
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.current 25
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.damage.base 8
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.defence.base 1
+    execute as @e[tag=new_enemy] at @s run summon text_display ~ ~2.3 ~ {Tags:["enemy_health_bar"],billboard:"vertical",text:'{"score":{"name":"@e[tag=new_enemy,limit=1]","objective":"rb.health.current"},"color":"red"}'}
+    tag @e[tag=new_enemy] remove new_enemy
+
+
+# ==============================================================================
+# FIRE ELEMENTAL - Flying magical enemy
+# ==============================================================================
+function rb:spawn/fire_elemental:
+    summon blaze ~ ~ ~ {CustomName:'[{"text":"Fire Elemental","color":"gold","bold":true}]',CustomNameVisible:1b,Tags:["rb_enemy","fire_elemental","new_enemy","magical_enemy","flying"],attributes:[{id:"generic.max_health",base:35.0},{id:"generic.scale",base:1.1},{id:"generic.movement_speed",base:0.3}],Health:35.0f}
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.max 35
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.health.current 35
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.damage.base 15
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.defence.base 2
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.dmg.type 1
+    execute as @e[tag=new_enemy] run scoreboard players set @s rb.amp.magical 200
+    execute as @e[tag=new_enemy] at @s run summon text_display ~ ~2.3 ~ {Tags:["enemy_health_bar"],billboard:"vertical",text:'{"score":{"name":"@e[tag=new_enemy,limit=1]","objective":"rb.health.current"},"color":"red"}'}
+    tag @e[tag=new_enemy] remove new_enemy
+
+
+# ==============================================================================
+# SYSTEM FUNCTIONS
+# ==============================================================================
+
+# Initialization
+function rb:enemies_init:
+    data merge storage enemies:data {}
+    tellraw @a [{"text":"[RB] ","color":"gold"},{"text":"Enemy system initialized - 5 enemy types available","color":"green"}]
+
+
+# Tick function - update health bars and check deaths
 function rb:enemies_tick:
     execute as @e[type=text_display,tag=enemy_health_bar] at @s run data modify entity @s text set value '{"score":{"name":"@e[tag=rb_enemy,limit=1,sort=nearest]","objective":"rb.health.current"},"color":"red"}'
     execute as @e[tag=rb_enemy] if score @s rb.health.current matches ..0 at @s run function rb:enemies/on_death
 
 
+# Death handler
 function rb:on_death:
     particle explosion ~ ~1 ~ 0.5 0.5 0.5 0 5
     playsound minecraft:entity.generic.death hostile @a ~ ~ ~ 1 0.8

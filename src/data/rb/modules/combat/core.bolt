@@ -1,21 +1,128 @@
 # Combat System - Core
 # Custom stat-based damage calculation system
-# Scoreboards are initialized in rb:scoreboards/init
+# Refactored from rb/function/combat/* mcfunction files
 
 # ============================================================================
-# INITIALIZATION
+# LOAD & INITIALIZATION
 # ============================================================================
 
-function rb:init_player_combat:
-    scoreboard players set @s rb.health.current 100
-    scoreboard players set @s rb.health.max 100
-    scoreboard players set @s rb.damage.base 10
-    scoreboard players set @s rb.defence.base 5
-    scoreboard players set @s rb.amp.physical 100
-    scoreboard players set @s rb.amp.magical 100
-    scoreboard players set @s rb.res.physical 0
-    scoreboard players set @s rb.res.magical 0
-    give @s iron_sword[enchantments={levels:{"rb:init_combat":1}},custom_name='{"text":"Combat Blade","italic":false}']
+function rb:load_combat:
+    """Initialize combat system on world load"""
+    function rb:combat/display/load_display
+
+    # Respawn any dead players on reload
+    execute as @a[tag=dead_player] run function rb:combat/dead/respawn
+
+    # Remove old scoreboards
+    scoreboard objectives remove current_health
+    scoreboard objectives remove max_health
+    scoreboard objectives remove total_defence_modifier
+    scoreboard objectives remove total_offence_modifier
+    scoreboard objectives remove base_damage
+    scoreboard objectives remove damage_type
+    scoreboard objectives remove dmg_calculation
+    scoreboard objectives remove base_defence
+    scoreboard objectives remove physical_amp
+    scoreboard objectives remove magical_amp
+    scoreboard objectives remove physical_res
+    scoreboard objectives remove magical_res
+    scoreboard objectives remove cooldown_end_game_time
+    scoreboard objectives remove current_game_time
+    scoreboard objectives remove previous_attack_speed
+    scoreboard objectives remove death_timer
+    scoreboard objectives remove respawn_time
+    scoreboard objectives remove spectate_score
+    scoreboard objectives remove spectate_success
+    scoreboard objectives remove regen_speed
+    scoreboard objectives remove regen_ticks
+    scoreboard objectives remove input_right_delay
+    scoreboard objectives remove input_left_delay
+    scoreboard objectives remove unspent_points
+
+    # Create scoreboards
+    scoreboard objectives add current_health dummy
+    scoreboard objectives add max_health dummy
+    scoreboard objectives add total_defence_modifier dummy
+    scoreboard objectives add total_offence_modifier dummy
+    scoreboard objectives add base_damage dummy
+    scoreboard objectives add damage_type dummy
+    scoreboard objectives add dmg_calculation dummy
+    scoreboard objectives add base_defence dummy
+    scoreboard objectives add physical_amp dummy
+    scoreboard objectives add magical_amp dummy
+    scoreboard objectives add physical_res dummy
+    scoreboard objectives add magical_res dummy
+    scoreboard objectives add cooldown_end_game_time dummy
+    scoreboard objectives add current_game_time dummy
+    scoreboard objectives add previous_attack_speed dummy
+    scoreboard objectives add death_timer dummy
+    scoreboard objectives add respawn_time dummy
+    scoreboard objectives add spectate_score dummy
+    scoreboard objectives add spectate_success dummy
+    scoreboard objectives add regen_speed dummy
+    scoreboard objectives add regen_ticks dummy
+    scoreboard objectives add input_right_delay dummy
+    scoreboard objectives add input_left_delay dummy
+    scoreboard objectives add unspent_points dummy
+
+    # Set constant values
+    scoreboard players set #0 dmg_calculation 0
+    scoreboard players set #1 dmg_calculation 1
+    scoreboard players set #20 dmg_calculation 20
+    scoreboard players set #100 dmg_calculation 100
+
+    # Game rules
+    gamerule naturalRegeneration false
+
+    # Revoke advancements
+    advancement revoke @a only rb:init_combat
+    advancement revoke @a only rb:first_join
+
+
+function rb:tick_combat:
+    """Main combat tick function"""
+    function rb:combat/display/tick_display
+    function rb:combat/health/health_regen
+
+    # Handle dead players
+    execute as @a[tag=dead_player] at @s run function rb:combat/dead/is_dead
+
+    # Update health bars for all entities with health
+    execute as @e[scores={current_health=0..}] run function rb:combat/health_bar/tick_entity
+
+    # Kill orphaned health bar displays
+    execute as @e[type=text_display,tag=health_bar] unless predicate rb:has_vehicle run kill @s
+
+
+function rb:first_join:
+    """Initialize player stats on first join"""
+    # Make player immune to vanilla damage
+    effect give @s resistance infinite 255 true
+
+    # Remove vanilla cooldown indicator
+    attribute @s minecraft:attack_speed base set 1000
+
+    # Set max_health and current_health
+    scoreboard players set @s max_health 100
+    scoreboard players operation @s current_health = @s max_health
+
+    # Set combat base values
+    scoreboard players set @s physical_amp 0
+    scoreboard players set @s magical_amp 0
+    scoreboard players set @s physical_res 0
+    scoreboard players set @s magical_res 0
+    scoreboard players set @s base_damage 0
+    scoreboard players set @s base_defence 0
+
+    # Set respawn time to base ticks
+    scoreboard players set @s respawn_time 100
+
+    # Set regen_speed to base ticks
+    scoreboard players set @s regen_speed 10
+
+    # Initialize cooldown mechanism
+    scoreboard players set @s previous_attack_speed 1
+    scoreboard players set @s cooldown_end_game_time 0
 
 
 # ============================================================================
@@ -23,64 +130,90 @@ function rb:init_player_combat:
 # ============================================================================
 
 function rb:init_combat:
-    """Triggered by custom enchantment on post_attack"""
-    # Store attacker and victim
-    tag @s add attacker
-    tag @e[sort=nearest,limit=1,type=!#rb:non_damageable,distance=..6] add victim
+    """Main combat initialization - triggered by advancement on attack"""
+    # Execute if attacked is not a player
+    execute as @s[type=!player] on attacker store result score #temp_base_dmg dmg_calculation run data get entity @s SelectedItem.components.minecraft:custom_data.base_damage
+    execute as @s[type=!player] on attacker store result score #temp_damage_type dmg_calculation run data get entity @s SelectedItem.components.minecraft:custom_data.damage_type
+    execute as @s[type=!player] on attacker store result score #temp_attack_speed dmg_calculation run data get entity @s SelectedItem.components.minecraft:custom_data.attack_speed
 
-    # Calculate and apply damage
-    execute as @e[tag=victim,limit=1] run function rb:combat/hurt_entity
+    # Execute if attacked is a player
+    execute as @s[type=player] on attacker run scoreboard players operation #temp_base_dmg dmg_calculation = @s base_damage
+    execute as @s[type=player] on attacker run scoreboard players operation #temp_damage_type dmg_calculation = @s damage_type
 
-    # Cleanup tags
-    tag @s remove attacker
-    tag @e[tag=victim] remove victim
+    # Calculate attack_cooldown modifier
+    execute as @s on attacker run function rb:combat/attack_cooldown
+
+    # Update all scoreboards physical (base_damage, total_offence_modifier, base_defence, total_defence_modifier)
+    execute as @s on attacker store result score #temp_total_offence_modifier dmg_calculation run scoreboard players get @s physical_amp
+
+    # Base defence and total resistance
+    execute store result score #temp_base_defence dmg_calculation run scoreboard players get @s base_defence
+    execute store result score #temp_total_defence_modifier dmg_calculation run scoreboard players get @s physical_res
+
+    # Hurt entity physical
+    execute if score #temp_damage_type dmg_calculation = #0 dmg_calculation run return run function rb:combat/hurt_entity
+
+    # Update all scoreboards magical (base_damage, total_offence_modifier, base_defence, total_defence_modifier)
+    execute as @s on attacker store result score #temp_total_offence_modifier dmg_calculation run scoreboard players get @s magical_amp
+
+    # Base defence and total resistance
+    execute store result score #temp_base_defence dmg_calculation run scoreboard players get @s base_defence
+    execute store result score #temp_total_defence_modifier dmg_calculation run scoreboard players get @s magical_res
+
+    # Hurt entity magical
+    execute if score #temp_damage_type dmg_calculation = #1 dmg_calculation run function rb:combat/hurt_entity
 
 
 function rb:hurt_entity:
-    """
-    Calculate and apply damage to victim based on attacker's stats.
-    Much cleaner than the original mcfunction version with Bolt's operators!
-    """
-    # Get attacker's stats
-    execute store result score #base_dmg dmg_calculation run scoreboard players get @p[tag=attacker] base_damage
-    execute store result score #damage_type dmg_calculation run scoreboard players get @p[tag=attacker] damage_type
+    """Calculate and apply damage to victim based on attacker's stats"""
+    # Skip certain entity types
+    execute if entity @s[type=mannequin,tag=npc_dialog] run return fail
+    execute if entity @s[tag=no_damage] run return fail
 
-    # Get victim's defence
-    execute store result score #base_def dmg_calculation run scoreboard players get @s base_defence
+    # Get hurt entities defensive modifiers
+    scoreboard players operation #temp_total_defence_mod dmg_calculation = #temp_total_defence_modifier dmg_calculation
+    scoreboard players operation #temp_total_defence_mod dmg_calculation += #100 dmg_calculation
 
-    # Calculate offense modifier (based on damage type)
-    execute if score #damage_type dmg_calculation matches 0 run scoreboard players operation #offense_mod dmg_calculation = @p[tag=attacker] physical_amp
-    execute if score #damage_type dmg_calculation matches 1 run scoreboard players operation #offense_mod dmg_calculation = @p[tag=attacker] magical_amp
+    # Calculate reduction
+    scoreboard players operation #temp_reduction dmg_calculation = #temp_base_defence dmg_calculation
+    scoreboard players operation #temp_reduction dmg_calculation *= #temp_total_defence_mod dmg_calculation
+    scoreboard players operation #temp_reduction dmg_calculation /= #100 dmg_calculation
 
-    # Calculate defence modifier (based on damage type)
-    execute if score #damage_type dmg_calculation matches 0 run scoreboard players operation #defence_mod dmg_calculation = @s physical_res
-    execute if score #damage_type dmg_calculation matches 1 run scoreboard players operation #defence_mod dmg_calculation = @s magical_res
+    # Get attacker total attack modifiers
+    scoreboard players operation #temp_total_offence_mod dmg_calculation = #temp_total_offence_modifier dmg_calculation
+    scoreboard players operation #temp_total_offence_mod dmg_calculation += #100 dmg_calculation
 
-    # Apply offense amplifier: damage = base_damage * (offense_mod / 100)
-    scoreboard players operation #final_dmg dmg_calculation = #base_dmg dmg_calculation
-    scoreboard players operation #final_dmg dmg_calculation *= #offense_mod dmg_calculation
-    scoreboard players set #100 dmg_calculation 100
-    scoreboard players operation #final_dmg dmg_calculation /= #100 dmg_calculation
+    # Calculate damage
+    scoreboard players operation @s dmg_calculation = #temp_base_dmg dmg_calculation
+    scoreboard players operation @s dmg_calculation *= #temp_total_offence_mod dmg_calculation
+    scoreboard players operation @s dmg_calculation /= #100 dmg_calculation
 
-    # Apply defence reduction: damage = damage - (defence * ((100 - resistance) / 100))
-    scoreboard players operation #defence_after_res dmg_calculation = #base_def dmg_calculation
-    scoreboard players set #100_temp dmg_calculation 100
-    scoreboard players operation #100_temp dmg_calculation -= #defence_mod dmg_calculation
-    scoreboard players operation #defence_after_res dmg_calculation *= #100_temp dmg_calculation
-    scoreboard players operation #defence_after_res dmg_calculation /= #100 dmg_calculation
+    scoreboard players operation @s dmg_calculation -= #temp_reduction dmg_calculation
 
-    # Final damage = attack - defence (minimum 1)
-    scoreboard players operation #final_dmg dmg_calculation -= #defence_after_res dmg_calculation
-    execute if score #final_dmg dmg_calculation matches ..0 run scoreboard players set #final_dmg dmg_calculation 1
+    # Update total damage with attack_speed_cd
+    scoreboard players operation @s dmg_calculation *= #attack_cooldown_percentage dmg_calculation
+    scoreboard players operation @s dmg_calculation /= #100 dmg_calculation
 
-    # Apply damage to victim's health
-    scoreboard players operation @s current_health -= #final_dmg dmg_calculation
+    # Debug messages
+    tellraw @a {"text":"-----------------------------------------------------","color":"dark_gray"}
+    execute as @s on attacker run tellraw @a [{"text":"Attacker: ","color":"red"},{"selector":"@s","color":"aqua"}]
+    execute as @s on attacker run tellraw @a [{"text":"total_offence_mod: ","color":"gray"},{"score":{"name":"#temp_total_offence_mod","objective":"dmg_calculation"}},{"text":"%   "},{"text":"charged up: "},{"score":{"name":"#attack_cooldown_percentage","objective":"dmg_calculation"}},{"text":"%"}]
+    execute as @s on attacker run tellraw @a [{"text":"base_damage: ","color":"gray"},{"score":{"name":"#temp_base_dmg","objective":"dmg_calculation"}}]
+    tellraw @a [{"text":"Defender: ","color":"red"},{"selector":"@s","color":"aqua"}]
+    tellraw @a [{"text":"current_health: ","color":"gray"},{"score":{"name":"@s","objective":"current_health"}}]
+    tellraw @a [{"text":"base_defence: ","color":"gray"},{"score":{"name":"#temp_base_defence","objective":"dmg_calculation"}}]
+    tellraw @a [{"text":"total_defence_mod: ","color":"gray"},{"score":{"name":"#temp_total_defence_modifier","objective":"dmg_calculation"}},{"text":"%"}]
 
-    # Display damage
-    execute at @s run function rb:combat/display_damage
+    # Remove from current health unless dmg calc is negative or 0
+    execute unless entity @s[scores={dmg_calculation=..0}] run scoreboard players operation @s current_health -= @s dmg_calculation
+    tellraw @a [{"text":"current_health: ","color":"gray"},{"score":{"name":"@s","objective":"current_health"}}]
+    tellraw @a {"text":"-----------------------------------------------------","color":"dark_gray"}
 
-    # Check for death
-    execute if score @s current_health matches ..0 run function rb:combat/on_death
+    # Handle death
+    execute if entity @s[scores={current_health=..0},type=!player] run kill @s
+    execute if entity @s[scores={current_health=..0},type=player] run function rb:combat/dead/kill_player
+
+    advancement revoke @s only rb:init_combat
 
 
 # ============================================================================
@@ -88,132 +221,268 @@ function rb:hurt_entity:
 # ============================================================================
 
 function rb:attack_cooldown:
-    """
-    Visual attack charge system - charges over time based on attack speed.
-    Shows charging progress on action bar.
-    """
-    # Get current game time
-    execute store result score @s current_time run time query gametime
+    """Calculate attack cooldown modifier"""
+    execute store result score #game_time current_game_time run time query gametime
 
-    # Check if cooldown has expired
-    execute if score @s cooldown_end <= @s current_time run function rb:combat/cooldown_ready
-    execute if score @s cooldown_end > @s current_time run function rb:combat/cooldown_charging
+    scoreboard players operation #cooldown_to_go cooldown_end_game_time = @s cooldown_end_game_time
+    scoreboard players operation #cooldown_to_go cooldown_end_game_time -= #game_time current_game_time
+
+    # Reset cooldown game end_time and add MAX(cooldown to go,temp_attackspeed)
+    scoreboard players operation @s cooldown_end_game_time = #game_time current_game_time
+    execute if score #cooldown_to_go cooldown_end_game_time > #0 dmg_calculation if score #cooldown_to_go cooldown_end_game_time < #temp_attack_speed dmg_calculation run scoreboard players operation @s cooldown_end_game_time += #temp_attack_speed dmg_calculation
+    execute if score #cooldown_to_go cooldown_end_game_time > #0 dmg_calculation if score #cooldown_to_go cooldown_end_game_time > #temp_attack_speed dmg_calculation run scoreboard players operation @s cooldown_end_game_time += #cooldown_to_go cooldown_end_game_time
+    execute if score #cooldown_to_go cooldown_end_game_time <= #0 dmg_calculation run scoreboard players operation @s cooldown_end_game_time += #temp_attack_speed dmg_calculation
+
+    # Calculate modifier
+    scoreboard players operation #attack_cooldown_percentage_reverse dmg_calculation = #cooldown_to_go cooldown_end_game_time
+    scoreboard players operation #attack_cooldown_percentage_reverse dmg_calculation *= #100 dmg_calculation
+    scoreboard players operation #attack_cooldown_percentage_reverse dmg_calculation /= @s previous_attack_speed
+
+    scoreboard players operation #attack_cooldown_percentage dmg_calculation = #100 dmg_calculation
+    scoreboard players operation #attack_cooldown_percentage dmg_calculation -= #attack_cooldown_percentage_reverse dmg_calculation
+    scoreboard players operation #attack_cooldown_percentage dmg_calculation -= #20 dmg_calculation
+
+    # If no cooldown to go also attack cooldown modifier to 100% to ensure no extra damage done by longer waiting
+    execute if score #cooldown_to_go cooldown_end_game_time < #0 dmg_calculation run scoreboard players set #attack_cooldown_percentage dmg_calculation 100
+
+    # Set previous_attack_speed
+    execute if score #temp_attack_speed dmg_calculation > @s previous_attack_speed run scoreboard players operation @s previous_attack_speed = #temp_attack_speed dmg_calculation
+    execute if score #cooldown_to_go cooldown_end_game_time > #0 dmg_calculation if score #cooldown_to_go cooldown_end_game_time < #temp_attack_speed dmg_calculation run scoreboard players operation @s previous_attack_speed = #temp_attack_speed dmg_calculation
 
 
-function rb:cooldown_ready:
-    """Display ready indicator"""
-    title @s actionbar [{"text":"âš” ","color":"green"},{"text":"READY","color":"green","bold":true},{"text":" âš”","color":"green"}]
+# ============================================================================
+# DEATH & RESPAWN SYSTEM
+# ============================================================================
+
+function rb:dead/kill_player:
+    """Handle player death"""
+    scoreboard players operation @s[scores={current_health=..0}] current_health = @s max_health
+    execute as @s at @s run summon marker ~ ~ ~ {Tags:["grave"]}
+    gamemode spectator
+    tag @s add dead_player
+    execute store result score @s spectate_score run random roll 1..4
+    say i died
 
 
-function rb:cooldown_charging:
-    """Display charge progress bar"""
-    # Calculate progress percentage
-    scoreboard players operation #time_elapsed dmg_calculation = @s current_time
-    scoreboard players operation #time_elapsed dmg_calculation -= @s cooldown_end
-    scoreboard players operation #time_elapsed dmg_calculation *= #100 dmg_calculation
-    # Divide by cooldown duration to get percentage
-    scoreboard players operation #time_elapsed dmg_calculation /= #attack_speed_temp dmg_calculation
+function rb:dead/is_dead:
+    """Death screen with spectator cycling"""
+    execute if score @s spectate_score matches 1 store success score @s spectate_success run spectate @p[limit=1,team=ignis,tag=!dead_player] @s
+    execute if score @s spectate_score matches 2 store success score @s spectate_success run spectate @p[limit=1,team=arcanis,tag=!dead_player] @s
+    execute if score @s spectate_score matches 3 store success score @s spectate_success run spectate @p[limit=1,team=mechanica,tag=!dead_player] @s
+    execute if score @s spectate_score matches 4 store success score @s spectate_success run spectate @p[limit=1,team=terra,tag=!dead_player] @s
 
-    # Show progress bar (simplified - original had complex bar rendering)
-    execute if score #time_elapsed dmg_calculation matches 0..20 run title @s actionbar [{"text":"â–¯â–¯â–¯â–¯â–¯","color":"gray"}]
-    execute if score #time_elapsed dmg_calculation matches 21..40 run title @s actionbar [{"text":"â–®","color":"yellow"},{"text":"â–¯â–¯â–¯â–¯","color":"gray"}]
-    execute if score #time_elapsed dmg_calculation matches 41..60 run title @s actionbar [{"text":"â–®â–®","color":"yellow"},{"text":"â–¯â–¯â–¯","color":"gray"}]
-    execute if score #time_elapsed dmg_calculation matches 61..80 run title @s actionbar [{"text":"â–®â–®â–®","color":"yellow"},{"text":"â–¯â–¯","color":"gray"}]
-    execute if score #time_elapsed dmg_calculation matches 81..99 run title @s actionbar [{"text":"â–®â–®â–®â–®","color":"yellow"},{"text":"â–¯","color":"gray"}]
+    # If not successful go to next spectate score
+    execute as @s if score @s spectate_success matches 0 run scoreboard players add @s spectate_score 1
+    execute as @s if score @s spectate_success matches 1 run function rb:combat/dead/is_spectating_you with storage id:name
+    execute as @s[scores={spectate_success=0..1}] run scoreboard players reset @s spectate_success
+
+    # Go to next spectate score if pressing move to right
+    execute as @s if predicate rb:input_right run function rb:combat/dead/input_right
+    execute as @s if predicate rb:input_left run function rb:combat/dead/input_left
+
+    # Cycle back to score 1
+    execute as @s if score @s spectate_score matches 5.. run scoreboard players set @s spectate_score 1
+    execute as @s if score @s spectate_score matches ..0 run scoreboard players set @s spectate_score 4
+
+    scoreboard players add @s death_timer 1
+
+    execute if score @s death_timer = @s respawn_time run function rb:combat/dead/respawn
+
+
+function rb:dead/input_left:
+    """Handle left input during death"""
+    execute store result score #current_time input_left_delay run time query gametime
+
+    scoreboard players add @s input_left_delay 1
+
+    execute unless score @s input_left_delay = #current_time input_left_delay run scoreboard players remove @s spectate_score 1
+
+    scoreboard players operation @s input_left_delay = #current_time input_left_delay
+
+
+function rb:dead/input_right:
+    """Handle right input during death"""
+    execute store result score #current_time input_right_delay run time query gametime
+
+    scoreboard players add @s input_right_delay 1
+
+    execute unless score @s input_right_delay = #current_time input_right_delay run scoreboard players add @s spectate_score 1
+
+    scoreboard players operation @s input_right_delay = #current_time input_right_delay
+
+
+function rb:dead/is_spectating_you:
+    """Notify players they're being spectated"""
+    $execute if entity @s[team=ignis] at @s run title @p[tag=!is_dead,distance=..1] actionbar [{player:"$(ignis)"},{text:" is now spectating you"}]
+    $execute if entity @s[team=arcanis] at @s run title @p[tag=!is_dead,distance=..1] actionbar [{player:"$(arcanis)"},{text:" is now spectating you"}]
+    $execute if entity @s[team=terra] at @s run title @p[tag=!is_dead,distance=..1] actionbar [{player:"$(terra)"},{text:" is now spectating you"}]
+    $execute if entity @s[team=mechanica] at @s run title @p[tag=!is_dead,distance=..1] actionbar [{player:"$(mechanica)"},{text:" is now spectating you"}]
+
+
+function rb:dead/respawn:
+    """Respawn the player"""
+    execute as @s run gamemode adventure
+    tag @s remove dead_player
+    kill @e[tag=grave,type=marker,sort=nearest,limit=1]
+    scoreboard players reset @s death_timer
+    say I respawned
 
 
 # ============================================================================
 # HEALTH SYSTEM
 # ============================================================================
 
-function rb:health_bar_update:
-    """Update visual health bar using text_display entities"""
-    # Find or create health bar display
-    execute unless entity @e[type=text_display,tag=health_bar,distance=..1] run summon text_display ~ ~2.5 ~ {Tags:["health_bar","new"],billboard:"vertical",text:'{"text":"â¤ 100/100","color":"red"}'}
+function rb:health/health_regen:
+    """Passive health regeneration"""
+    scoreboard players add @a regen_ticks 1
 
-    # Update position to follow player
-    execute as @e[type=text_display,tag=health_bar,distance=..2] at @s run tp @s ~ ~2.5 ~
-
-    # Update health text
-    execute if score @s current_health matches ..25 run data modify entity @e[type=text_display,tag=health_bar,distance=..2,limit=1] text set value '{"score":{"name":"@p","objective":"rb.health.current"},"color":"dark_red","bold":true}'
-    execute if score @s current_health matches 26..50 run data modify entity @e[type=text_display,tag=health_bar,distance=..2,limit=1] text set value '{"score":{"name":"@p","objective":"rb.health.current"},"color":"gold"}'
-    execute if score @s current_health matches 51.. run data modify entity @e[type=text_display,tag=health_bar,distance=..2,limit=1] text set value '{"score":{"name":"@p","objective":"rb.health.current"},"color":"red"}'
+    execute as @a if score @s regen_ticks = @s regen_speed if score @s max_health > @s current_health run scoreboard players add @s current_health 1
+    execute as @a if score @s regen_ticks >= @s regen_speed run scoreboard players reset @s regen_ticks
 
 
-function rb:health_regen_loop:
-    """Passive health regeneration - runs every second"""
-    # Regen 1 HP per second for players not in combat
-    execute as @a unless score @s current_health >= @s max_health run scoreboard players add @s current_health 1
-
-    # Schedule next iteration
-    schedule function rb:combat/health_regen_loop 20t
+function rb:health/max_health/update:
+    """Update max health (placeholder for future implementation)"""
 
 
 # ============================================================================
-# DEATH & RESPAWN
+# HEALTH BAR SYSTEM
 # ============================================================================
 
-function rb:player_on_death:
-    """Handle player death"""
-    # Set health to 0
-    scoreboard players set @s current_health 0
+function rb:health_bar/init_entity:
+    """Initialize health bar for entity"""
+    # Summon text display
+    summon minecraft:text_display ~ ~ ~ {alignment:"center",Tags:["health_bar"],text:'""',transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],scale:[1f,1f,1f],translation:[0f,0.5f,0f]},billboard:"center"}
 
-    # Enter spectator mode
-    gamemode spectator @s
+    # Mount the entity
+    ride @n[type=minecraft:text_display,tag=health_bar] mount @s
 
-    # Set death timer (100 ticks = 5 seconds)
-    scoreboard players set @s death_timer 100
-    scoreboard players set @s respawn_time 5
-
-    # Message
-    tellraw @s [{"text":"You died! Respawning in ","color":"red"},{"score":{"name":"@s","objective":"rb.respawn.time"},"color":"gold"},{"text":" seconds...","color":"red"}]
-
-    # Particles
-    execute at @s run particle minecraft:explosion ~ ~1 ~ 0.5 0.5 0.5 0.1 10
+    # Tag the entity
+    tag @s add checked_health
 
 
-function rb:death_timer:
-    """Count down death timer"""
-    scoreboard players remove @s death_timer 1
-    scoreboard players operation @s respawn_time = @s death_timer
-    scoreboard players set #20 dmg_calculation 20
-    scoreboard players operation @s respawn_time /= #20 dmg_calculation
+function rb:health_bar/tick_entity:
+    """Update health bar each tick"""
+    # Init any unchecked entity
+    execute as @s[tag=!checked_health] at @s run return run function rb:combat/health_bar/init_entity
 
-    # Update countdown
-    execute if score @s death_timer matches 1.. run title @s title [{"text":"DEAD","color":"dark_red","bold":true}]
-    execute if score @s death_timer matches 1.. run title @s subtitle [{"text":"Respawning in ","color":"gray"},{"score":{"name":"@s","objective":"rb.respawn.time"},"color":"gold"},{"text":"s","color":"gray"}]
+    # Store current and max health
+    execute store result storage id:temp entity.current_health int 1 run scoreboard players get @s current_health
+    execute store result storage id:temp entity.max_health int 1 run scoreboard players get @s max_health
 
-    # Respawn when timer ends
-    execute if score @s death_timer matches 0 run function rb:combat/respawn
+    # Store percentage colour
+    scoreboard players set #temp.current_health value 100
+    scoreboard players operation #temp.current_health value *= @s current_health
+    scoreboard players operation #temp.max_health value = @s max_health
+    scoreboard players operation #temp.current_health value /= #temp.max_health value
+    data modify storage id:temp entity.health_colour set value green
+    execute if score #temp.current_health value matches 26..75 run data modify storage id:temp entity.health_colour set value gold
+    execute if score #temp.current_health value matches ..25 run data modify storage id:temp entity.health_colour set value red
+
+    # Store type colour
+    data modify storage id:temp entity.type_colour set value red
+    execute if entity @s[type=player] run data modify storage id:temp entity.type_colour set value green
+
+    # Update text display
+    execute on passengers run function rb:combat/health_bar/update_display with storage id:temp entity
 
 
-function rb:respawn:
-    """Respawn the player"""
-    # Reset health
-    scoreboard players operation @s current_health = @s max_health
-
-    # Teleport to spawn
-    execute in minecraft:overworld run tp @s 0 100 0
-
-    # Back to survival
-    gamemode survival @s
-
-    # Reset timer
-    scoreboard players reset @s death_timer
-
-    # Message
-    tellraw @s [{"text":"You have respawned!","color":"green","bold":true}]
-    title @s title [{"text":"RESPAWNED","color":"green","bold":true}]
+function rb:health_bar/update_display:
+    """Update health bar display text (macro function)"""
+    $data merge entity @s {text:[{"text":"$(current_health)","color":"$(health_colour)"},{"text":"/","color":"dark_gray"},{"text":"$(max_health)","color":"dark_gray"},{"text":" d","color":"dark_red"}]}
 
 
 # ============================================================================
-# DISPLAY UTILITIES
+# DISPLAY SYSTEM
 # ============================================================================
 
-function rb:display_damage:
-    """Show damage number above damaged entity"""
-    # Create damage indicator
-    summon text_display ~ ~1 ~ {Tags:["damage_indicator","new"],billboard:"vertical",text:'{"score":{"name":"#final_dmg","objective":"rb.dmg.calc"},"color":"red","bold":true}',Rotation:[0.0f,0.0f]}
+function rb:display/load_display:
+    """Initialize team displays on load"""
+    team remove ignis
+    team remove arcanis
+    team remove mechanica
+    team remove terra
+    team remove dark_red
+    team remove gray
 
-    # Animate upward (handled by separate system)
-    tag @e[type=text_display,tag=new] remove new
+    team add ignis {"text":"Ignis =%","color":"red"}
+    team add arcanis {"text":"Arcanis (","color":"dark_purple"}
+    team add mechanica {"text":"Mechanica =à","color":"yellow"}
+    team add terra {"text":"Terra ð","color":"dark_green"}
+    team add dark_red
+    team add gray
+    team add gold
+
+    team modify ignis color red
+    team modify ignis prefix [{"text":"[Ignis] ","color":"gold"}]
+    team modify arcanis color dark_purple
+    team modify arcanis prefix [{"text":"[Arcanis] ","color":"gold"}]
+    team modify mechanica color yellow
+    team modify mechanica prefix [{"text":"[Mechanica] ","color":"gold"}]
+    team modify terra color dark_green
+    team modify terra prefix [{"text":"[Terra] ","color":"gold"}]
+    team modify dark_red color dark_red
+    team modify gray color gray
+    team modify gold color gold
+
+    team join dark_red d
+    team join gray =á=R
+    team join gold <
+
+    scoreboard objectives remove ignis_display
+    scoreboard objectives add ignis_display dummy {"text":"Ignis =%","color":"red","bold":false}
+
+    scoreboard objectives remove arcanis_display
+    scoreboard objectives add arcanis_display dummy {"text":"Arcanis (","color":"dark_purple","bold":false}
+    scoreboard objectives remove mechanica_display
+    scoreboard objectives add mechanica_display dummy {"text":"Mechanica =à","color":"yellow","bold":false}
+    scoreboard objectives remove terra_display
+    scoreboard objectives add terra_display dummy {"text":"Terra ð","color":"dark_green","bold":false}
+
+    scoreboard objectives setdisplay sidebar.team.red ignis_display
+    scoreboard objectives setdisplay sidebar.team.dark_purple arcanis_display
+    scoreboard objectives setdisplay sidebar.team.yellow mechanica_display
+    scoreboard objectives setdisplay sidebar.team.dark_green terra_display
+
+
+function rb:display/tick_display:
+    """Update sidebar displays each tick"""
+    # HP d
+    execute as @a[team=ignis] run scoreboard players operation d ignis_display = @s current_health
+    execute as @a[team=arcanis] run scoreboard players operation d arcanis_display = @s current_health
+    execute as @a[team=mechanica] run scoreboard players operation d mechanica_display = @s current_health
+    execute as @a[team=terra] run scoreboard players operation d terra_display = @s current_health
+
+    # Attack CD =á=R
+    execute store result score #display_game_time current_game_time run time query gametime
+    scoreboard players operation #display_game_time current_game_time -= #20 dmg_calculation
+
+    execute as @a[team=ignis] run scoreboard players operation =á=R ignis_display = @s cooldown_end_game_time
+    execute unless score =á=R ignis_display <= #0 dmg_calculation run scoreboard players operation =á=R ignis_display -= #display_game_time current_game_time
+    execute if score =á=R ignis_display < #0 dmg_calculation run scoreboard players operation =á=R ignis_display = #0 dmg_calculation
+    scoreboard players operation =á=R ignis_display /= #20 dmg_calculation
+
+    execute as @a[team=arcanis] run scoreboard players operation =á=R arcanis_display = @s cooldown_end_game_time
+    execute unless score =á=R arcanis_display <= #0 dmg_calculation run scoreboard players operation =á=R arcanis_display -= #display_game_time current_game_time
+    execute if score =á=R arcanis_display < #0 dmg_calculation run scoreboard players operation =á=R arcanis_display = #0 dmg_calculation
+    scoreboard players operation =á=R arcanis_display /= #20 dmg_calculation
+
+    execute as @a[team=mechanica] run scoreboard players operation =á=R mechanica_display = @s cooldown_end_game_time
+    execute unless score =á=R mechanica_display <= #0 dmg_calculation run scoreboard players operation =á=R mechanica_display -= #display_game_time current_game_time
+    execute if score =á=R mechanica_display < #0 dmg_calculation run scoreboard players operation =á=R mechanica_display = #0 dmg_calculation
+    scoreboard players operation =á=R mechanica_display /= #20 dmg_calculation
+
+    execute as @a[team=terra] run scoreboard players operation =á=R terra_display = @s cooldown_end_game_time
+    execute unless score =á=R terra_display <= #0 dmg_calculation run scoreboard players operation =á=R terra_display -= #display_game_time current_game_time
+    execute if score =á=R terra_display < #0 dmg_calculation run scoreboard players operation =á=R terra_display = #0 dmg_calculation
+    scoreboard players operation =á=R terra_display /= #20 dmg_calculation
+
+    # Ability points <
+    execute as @a[team=ignis] run scoreboard players operation < ignis_display = @s unspent_points
+    execute as @a[team=arcanis] run scoreboard players operation < arcanis_display = @s unspent_points
+    execute as @a[team=mechanica] run scoreboard players operation < mechanica_display = @s unspent_points
+    execute as @a[team=terra] run scoreboard players operation < terra_display = @s unspent_points
+
+    execute as @a[team=ignis] if score @s unspent_points matches ..0 run scoreboard players reset < ignis_display
+    execute as @a[team=arcanis] if score @s unspent_points matches ..0 run scoreboard players reset < arcanis_display
+    execute as @a[team=mechanica] if score @s unspent_points matches ..0 run scoreboard players reset < mechanica_display
+    execute as @a[team=terra] if score @s unspent_points matches ..0 run scoreboard players reset < terra_display
