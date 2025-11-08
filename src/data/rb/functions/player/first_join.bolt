@@ -1,0 +1,52 @@
+# Player First Join
+# Initialize new players
+
+# Assign unique player ID
+scoreboard players operation @s player_id = #next_id player_id
+scoreboard players add #next_id player_id 1
+
+# Welcome message
+tellraw @s [{"text":"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━","color":"gold","bold":true}]
+tellraw @s [{"text":"     REALMS BEYOND","color":"dark_purple","bold":true}]
+tellraw @s [{"text":"     Adventure RPG","color":"light_purple"}]
+tellraw @s [{"text":"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━","color":"gold","bold":true}]
+tellraw @s ""
+tellraw @s [{"text":"Welcome to Realms Beyond!","color":"yellow"}]
+tellraw @s [{"text":"Your adventure begins...","color":"gray","italic":true}]
+tellraw @s ""
+
+# Initialize combat stats
+function rb:combat/init_player_combat
+
+# Initialize stats
+function rb:stats/init
+
+# Initialize abilities
+# (Could give starting spellbook here)
+
+# Starting items
+give @s written_book[
+    written_book_content={
+        title:"Adventurer's Guide",
+        author:"Realms Beyond",
+        pages:[
+            '[{"text":"REALMS BEYOND\\n\\n","color":"dark_purple","bold":true},{"text":"Welcome, adventurer!\\n\\n","color":"black","bold":false},{"text":"This datapack features:\\n\\n","color":"gray"},{"text":"• Custom Combat\\n• Magic Abilities\\n• Character Classes\\n• NPC Quests\\n• Boss Fights","color":"dark_gray"}]',
+            '[{"text":"COMBAT SYSTEM\\n\\n","color":"red","bold":true},{"text":"Fight using stats!\\n\\n","color":"black","bold":false},{"text":"Damage = (Base DMG × Amp) - Defence\\n\\n","color":"gray"},{"text":"Physical vs Magical damage types affect combat.","color":"dark_gray"}]',
+            '[{"text":"STATS\\n\\n","color":"green","bold":true},{"text":"Allocate points:\\n\\n","color":"black","bold":false},{"text":"STR","color":"red"},{"text":" - Damage\\n","color":"gray"},{"text":"VIT","color":"dark_red"},{"text":" - Health\\n","color":"gray"},{"text":"INT","color":"blue"},{"text":" - Magic\\n","color":"gray"},{"text":"DEX","color":"green"},{"text":" - Speed","color":"gray"}]',
+            '[{"text":"COMMANDS\\n\\n","color":"gold","bold":true},{"text":"/function rb:stats/show_stats\\n","color":"yellow","clickEvent":{"action":"suggest_command","value":"/function rb:stats/show_stats"}},{"text":"View your stats\\n\\n","color":"gray"},{"text":"/function rb:character_selection/setup_zones\\n","color":"yellow","clickEvent":{"action":"suggest_command","value":"/function rb:character_selection/setup_zones"}},{"text":"Set up class selection","color":"gray"}]'
+        ]
+    },
+    custom_name='{"text":"Adventurer\'s Guide","color":"gold","italic":false}'
+]
+
+# Sound effect
+playsound minecraft:entity.player.levelup player @s ~ ~ ~ 1 1
+
+# Teleport to spawn (customize coordinates as needed)
+tp @s 0 100 0
+
+# Effects
+effect give @s resistance 10 4 true
+effect give @s saturation 10 255 true
+
+tellraw @s [{"text":"Type ","color":"gray"},{"text":"/function rb:stats/show_stats","color":"yellow","clickEvent":{"action":"suggest_command","value":"/function rb:stats/show_stats"}},{"text":" to view your stats!","color":"gray"}]

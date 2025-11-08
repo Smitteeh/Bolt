@@ -1,0 +1,201 @@
+# Abilities System - Magic Spells
+# Cooldown-based ability system with visual effects
+# Scoreboards are initialized in rb:scoreboards/init
+
+# ============================================================================
+# ABILITY INITIALIZATION
+# ============================================================================
+
+function init:
+    data merge storage abilities:stats {
+        fire_sphere: {
+            name: "Fire Sphere",
+            cooldown: 100,
+            mana_cost: 20,
+            damage: 15,
+            damage_type: 1,
+            duration: 60
+        },
+        earth_wall: {
+            name: "Earth Wall",
+            cooldown: 200,
+            mana_cost: 30,
+            duration: 100,
+            wall_height: 3,
+            wall_width: 5
+        },
+        healing_aura: {
+            name: "Healing Aura",
+            cooldown: 150,
+            mana_cost: 25,
+            heal_amount: 20,
+            radius: 5
+        },
+        lightning_strike: {
+            name: "Lightning Strike",
+            cooldown: 120,
+            mana_cost: 35,
+            damage: 25,
+            damage_type: 1
+        }
+    }
+
+
+# ============================================================================
+# FIRE SPHERE ABILITY
+# ============================================================================
+
+function fire_sphere/cast:
+    summon marker ~ ~ ~ {Tags:["fire_sphere","new","ability_projectile"],data:{caster_id:0,lifetime:60,angle:0}}
+    execute store result entity @e[type=marker,tag=new,limit=1] data.caster_id int 1 run scoreboard players get @s player_id
+    execute at @e[type=marker,tag=new] run summon block_display ~ ~ ~ {Tags:["fire_sphere_display"],block_state:{Name:"minecraft:magma_block"},transformation:{scale:[0.5f,0.5f,0.5f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f]}}
+    execute as @e[type=marker,tag=new,limit=1] at @s run ride @e[type=block_display,tag=fire_sphere_display,distance=..1,limit=1] mount @s
+    tag @e[tag=new] remove new
+    tellraw @s [{"text":"[Abilities] ","color":"gold"},{"text":"Fire Sphere","color":"red","bold":true},{"text":" activated!","color":"gold"}]
+    playsound minecraft:entity.blaze.shoot player @s ~ ~ ~ 1 1.2
+
+
+function fire_sphere/tick:
+    execute as @e[type=marker,tag=fire_sphere] run data modify entity @s data.lifetime set value 59
+    execute as @e[type=marker,tag=fire_sphere] at @s run function rb:abilities/fire_sphere/orbit
+    execute at @e[type=marker,tag=fire_sphere] run particle flame ~ ~ ~ 0.1 0.1 0.1 0.02 3
+    execute as @e[type=marker,tag=fire_sphere] at @s run function rb:abilities/fire_sphere/damage
+    execute as @e[type=marker,tag=fire_sphere] if data entity @s {data:{lifetime:0}} run function rb:abilities/fire_sphere/remove
+
+
+function fire_sphere/orbit:
+    execute store result score #caster_id rb.ability.cd run data get entity @s data.caster_id
+    execute store result score #angle rb.ability.cd run data get entity @s data.angle
+    scoreboard players add #angle rb.ability.cd 10
+    execute if score #angle rb.ability.cd matches 360.. run scoreboard players set #angle rb.ability.cd 0
+    execute store result entity @s data.angle int 1 run scoreboard players get #angle rb.ability.cd
+    execute as @a if score @s player_id = #caster_id rb.ability.cd at @s run tp @e[type=marker,tag=fire_sphere,limit=1,sort=nearest] ^ ^ ^2
+
+
+function fire_sphere/damage:
+    tag @e[type=!#rb:non_damageable,distance=..1.5,tag=!fire_sphere_immune] add fire_sphere_target
+    execute as @e[tag=fire_sphere_target] run scoreboard players remove @s rb.health.current 15
+    execute as @e[tag=fire_sphere_target] at @s run particle flame ~ ~1 ~ 0.3 0.5 0.3 0.1 20
+    execute as @e[tag=fire_sphere_target] at @s run playsound minecraft:entity.generic.burn hostile @a ~ ~ ~ 1 1
+    tag @e[tag=fire_sphere_target] remove fire_sphere_target
+
+
+function fire_sphere/remove:
+    execute at @s run kill @e[type=block_display,tag=fire_sphere_display,distance=..1]
+    particle flame ~ ~ ~ 0.5 0.5 0.5 0.1 30
+    kill @s
+
+
+# ============================================================================
+# EARTH WALL ABILITY
+# ============================================================================
+
+function earth_wall/cast:
+    tellraw @s [{"text":"[Abilities] ","color":"gold"},{"text":"Earth Wall","color":"dark_green","bold":true},{"text":" summoned!","color":"gold"}]
+    execute at @s run function rb:abilities/earth_wall/create_wall
+    playsound minecraft:block.stone.place player @a ~ ~ ~ 1 0.8
+
+
+function earth_wall/create_wall:
+    # Place 5-wide, 3-tall wall (unrolled loop)
+    execute positioned ^-2 ^ ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^-2 ^1 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^-2 ^2 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^-1 ^ ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^-1 ^1 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^-1 ^2 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^ ^ ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^ ^1 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^ ^2 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^1 ^ ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^1 ^1 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^1 ^2 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^2 ^ ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^2 ^1 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^2 ^2 ^2 unless block ~ ~ ~ #rb:replaceable run setblock ~ ~ ~ stone_bricks
+    execute positioned ^-2 ^ ^2 run summon marker ~ ~ ~ {Tags:["earth_wall_marker"],data:{lifetime:100}}
+    schedule function rb:abilities/earth_wall/check_lifetime 1t
+
+
+function earth_wall/check_lifetime:
+    execute as @e[type=marker,tag=earth_wall_marker] run data modify entity @s data.lifetime set value 99
+    execute as @e[type=marker,tag=earth_wall_marker] if data entity @s {data:{lifetime:0}} at @s run function rb:abilities/earth_wall/remove
+    execute if entity @e[type=marker,tag=earth_wall_marker] run schedule function rb:abilities/earth_wall/check_lifetime 1t
+
+
+function earth_wall/remove:
+    fill ~-2 ~ ~2 ~2 ~2 ~2 air replace stone_bricks
+    particle block{block_state:"minecraft:stone_bricks"} ~ ~1 ~ 2 1 0 0 50
+    kill @s
+
+
+# ============================================================================
+# LIGHTNING STRIKE ABILITY
+# ============================================================================
+
+function lightning_strike/cast:
+    execute anchored eyes positioned ^ ^ ^ run function rb:abilities/lightning_strike/raycast
+    tellraw @s [{"text":"[Abilities] ","color":"gold"},{"text":"Lightning Strike","color":"aqua","bold":true},{"text":"!","color":"gold"}]
+
+
+function lightning_strike/raycast:
+    execute unless block ~ ~ ~ #rb:transparent positioned ^ ^ ^1 run function rb:abilities/lightning_strike/strike
+
+
+function lightning_strike/strike:
+    summon lightning_bolt ~ ~ ~
+    execute as @e[type=!#rb:non_damageable,distance=..4] run scoreboard players remove @s rb.health.current 25
+    particle electric_spark ~ ~ ~ 2 2 2 0.5 100
+
+
+# ============================================================================
+# HEALING AURA ABILITY
+# ============================================================================
+
+function healing_aura/cast:
+    execute at @s run scoreboard players add @a[distance=..5] rb.health.current 20
+    execute as @a run execute if score @s rb.health.current > @s rb.health.max run scoreboard players operation @s rb.health.current = @s rb.health.max
+    execute at @s run particle heart ~ ~1 ~ 5 1 5 0 20
+    execute at @s run particle happy_villager ~ ~1 ~ 5 1 5 0.1 30
+    playsound minecraft:block.beacon.power_select player @a ~ ~ ~ 1 1.5
+    tellraw @a[distance=..5] [{"text":"[Abilities] ","color":"gold"},{"text":"Healing Aura","color":"light_purple","bold":true},{"text":" restored your health!","color":"gold"}]
+
+
+# ============================================================================
+# MAGIC WAND SYSTEM
+# ============================================================================
+
+function wand/start_charge:
+    scoreboard players set @s rb.casting 1
+    scoreboard players set @s rb.spell.charge 0
+    title @s actionbar [{"text":"Charging...","color":"aqua"}]
+
+
+function wand/charge_tick:
+    scoreboard players add @s rb.spell.charge 1
+    execute if score @s rb.spell.charge matches 1..10 run title @s actionbar [{"text":"▯▯▯▯▯▯▯▯▯▯","color":"gray"}]
+    execute if score @s rb.spell.charge matches 11..20 run title @s actionbar [{"text":"▮▮","color":"aqua"},{"text":"▯▯▯▯▯▯▯▯","color":"gray"}]
+    execute if score @s rb.spell.charge matches 21..30 run title @s actionbar [{"text":"▮▮▮▮","color":"aqua"},{"text":"▯▯▯▯▯▯","color":"gray"}]
+    execute if score @s rb.spell.charge matches 31..40 run title @s actionbar [{"text":"▮▮▮▮▮▮","color":"aqua"},{"text":"▯▯▯▯","color":"gray"}]
+    execute if score @s rb.spell.charge matches 41.. run title @s actionbar [{"text":"▮▮▮▮▮▮▮▮▮▮","color":"green","bold":true},{"text":" READY!","color":"gold","bold":true}]
+    execute at @s run particle enchant ^ ^1 ^1 0.3 0.3 0.3 0 5
+    execute if score @s rb.spell.charge matches 50.. run function rb:abilities/wand/release
+
+
+function wand/release:
+    execute if score @s rb.spell.charge matches ..20 run tellraw @s [{"text":"Spell fizzled - not enough charge!","color":"red"}]
+    execute if score @s rb.spell.charge matches 21..40 run function rb:abilities/wand/weak_spell
+    execute if score @s rb.spell.charge matches 41.. run function rb:abilities/wand/strong_spell
+    scoreboard players reset @s rb.casting
+    scoreboard players reset @s rb.spell.charge
+
+
+function wand/weak_spell:
+    execute anchored eyes positioned ^ ^ ^2 run summon fireball ~ ~ ~ {ExplosionPower:1b,direction:[0.0,0.0,0.1]}
+    tellraw @s [{"text":"Weak Fireball","color":"yellow"}]
+
+
+function wand/strong_spell:
+    execute anchored eyes positioned ^ ^ ^2 run summon fireball ~ ~ ~ {ExplosionPower:3b,direction:[0.0,0.0,0.3]}
+    tellraw @s [{"text":"POWERFUL FIREBALL!","color":"gold","bold":true}]
+    playsound minecraft:entity.ender_dragon.shoot player @a ~ ~ ~ 1 1.2

@@ -1,0 +1,109 @@
+# Character Selection System
+# Choose class with visual dome effects
+
+function setup_zones:
+    # Terra (Earth) - Green zone at 0,64,0
+    execute positioned 0 64 0 run summon marker ~ ~ ~ {Tags:["class_zone","zone_terra"]}
+    execute positioned 0 67 0 run summon text_display ~ ~ ~ {Tags:["class_zone_display"],billboard:"vertical",text:'[{"text":"TERRA","color":"green","bold":true}]',transformation:{scale:[3f,3f,3f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f]}}
+
+    # Ignis (Fire) - Red zone at 20,64,0
+    execute positioned 20 64 0 run summon marker ~ ~ ~ {Tags:["class_zone","zone_ignis"]}
+    execute positioned 20 67 0 run summon text_display ~ ~ ~ {Tags:["class_zone_display"],billboard:"vertical",text:'[{"text":"IGNIS","color":"red","bold":true}]',transformation:{scale:[3f,3f,3f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f]}}
+
+    # Mechanica (Tech) - Blue zone at 0,64,20
+    execute positioned 0 64 20 run summon marker ~ ~ ~ {Tags:["class_zone","zone_mechanica"]}
+    execute positioned 0 67 20 run summon text_display ~ ~ ~ {Tags:["class_zone_display"],billboard:"vertical",text:'[{"text":"MECHANICA","color":"aqua","bold":true}]',transformation:{scale:[3f,3f,3f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f]}}
+
+    # Arcanis (Arcane) - Purple zone at 20,64,20
+    execute positioned 20 64 20 run summon marker ~ ~ ~ {Tags:["class_zone","zone_arcanis"]}
+    execute positioned 20 67 20 run summon text_display ~ ~ ~ {Tags:["class_zone_display"],billboard:"vertical",text:'[{"text":"ARCANIS","color":"light_purple","bold":true}]',transformation:{scale:[3f,3f,3f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f]}}
+
+    schedule function rb:character_selection/particle_loop 3t
+    tellraw @a [{"text":"Class selection zones created!","color":"green"}]
+
+
+function tick:
+    execute if entity @e[type=marker,tag=zone_terra,distance=..5] run function rb:character_selection/check_terra
+    execute if entity @e[type=marker,tag=zone_ignis,distance=..5] run function rb:character_selection/check_ignis
+    execute if entity @e[type=marker,tag=zone_mechanica,distance=..5] run function rb:character_selection/check_mechanica
+    execute if entity @e[type=marker,tag=zone_arcanis,distance=..5] run function rb:character_selection/check_arcanis
+
+
+function check_terra:
+    execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
+    execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Terra...","color":"green"}]
+    execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_terra
+
+
+function check_ignis:
+    execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
+    execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Ignis...","color":"red"}]
+    execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_ignis
+
+
+function check_mechanica:
+    execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
+    execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Mechanica...","color":"aqua"}]
+    execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_mechanica
+
+
+function check_arcanis:
+    execute unless entity @s[tag=class_selected] run scoreboard players add @s rb.select.timer 1
+    execute if score @s rb.select.timer matches 20 run tellraw @s [{"text":"Selecting Arcanis...","color":"light_purple"}]
+    execute if score @s rb.select.timer matches 100.. run function rb:character_selection/select_arcanis
+
+
+function select_terra:
+    tag @s add class_selected
+    tag @s add class_terra
+    title @s title [{"text":"TERRA","color":"green","bold":true}]
+    title @s subtitle [{"text":"Earth Guardian","color":"dark_green"}]
+    scoreboard players add @s rb.health.max 50
+    scoreboard players add @s rb.defence.base 10
+    scoreboard players set @s rb.amp.magical 120
+    particle explosion_emitter ~ ~1 ~ 0 0 0 0 1
+    playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
+
+
+function select_ignis:
+    tag @s add class_selected
+    tag @s add class_ignis
+    title @s title [{"text":"IGNIS","color":"red","bold":true}]
+    title @s subtitle [{"text":"Flame Wielder","color":"gold"}]
+    scoreboard players add @s rb.health.max 20
+    scoreboard players add @s rb.damage.base 15
+    scoreboard players set @s rb.amp.magical 150
+    particle explosion_emitter ~ ~1 ~ 0 0 0 0 1
+    playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
+
+
+function select_mechanica:
+    tag @s add class_selected
+    tag @s add class_mechanica
+    title @s title [{"text":"MECHANICA","color":"aqua","bold":true}]
+    title @s subtitle [{"text":"Tech Specialist","color":"blue"}]
+    scoreboard players add @s rb.health.max 30
+    scoreboard players add @s rb.damage.base 8
+    scoreboard players add @s rb.defence.base 5
+    particle explosion_emitter ~ ~1 ~ 0 0 0 0 1
+    playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
+
+
+function select_arcanis:
+    tag @s add class_selected
+    tag @s add class_arcanis
+    title @s title [{"text":"ARCANIS","color":"light_purple","bold":true}]
+    title @s subtitle [{"text":"Arcane Master","color":"dark_purple"}]
+    scoreboard players add @s rb.health.max 10
+    scoreboard players set @s rb.amp.magical 200
+    scoreboard players set @s rb.res.magical 30
+    particle explosion_emitter ~ ~1 ~ 0 0 0 0 1
+    playsound minecraft:ui.toast.challenge_complete player @s ~ ~ ~ 1 1
+
+
+function particle_loop:
+    execute at @e[type=marker,tag=zone_terra] run function rb:particles/create_dome_terra
+    execute at @e[type=marker,tag=zone_ignis] run function rb:particles/create_dome_ignis
+    execute at @e[type=marker,tag=zone_mechanica] run function rb:particles/create_dome_mechanica
+    execute at @e[type=marker,tag=zone_arcanis] run function rb:particles/create_dome_arcanis
+    schedule function rb:character_selection/particle_loop 3t

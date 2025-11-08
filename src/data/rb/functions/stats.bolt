@@ -1,0 +1,123 @@
+# Stats System - Player stat allocation and progression
+
+function init:
+    scoreboard players set @s rb.stat.points 10
+    scoreboard players set @s rb.level 1
+    scoreboard players set @s rb.stat.str 5
+    scoreboard players set @s rb.stat.vit 5
+    scoreboard players set @s rb.stat.int 5
+    scoreboard players set @s rb.stat.dex 5
+    function rb:stats/recalculate
+
+
+function stats_loop:
+    execute as @a run function rb:stats/update
+    schedule function rb:stats/stats_loop 5t
+
+
+function update:
+    execute if score @s rb.stat.str matches 1.. run function rb:stats/apply_strength
+    execute if score @s rb.stat.vit matches 1.. run function rb:stats/apply_vitality
+    execute if score @s rb.stat.int matches 1.. run function rb:stats/apply_intelligence
+    execute if score @s rb.stat.dex matches 1.. run function rb:stats/apply_dexterity
+
+
+function apply_strength:
+    scoreboard players operation @s rb.damage.base = @s rb.stat.str
+    scoreboard players set #2 rb.stat.points 2
+    scoreboard players operation @s rb.damage.base *= #2 rb.stat.points
+    scoreboard players operation @s rb.amp.physical = @s rb.stat.str
+    scoreboard players set #5 rb.stat.points 5
+    scoreboard players operation @s rb.amp.physical *= #5 rb.stat.points
+    scoreboard players add @s rb.amp.physical 100
+
+
+function apply_vitality:
+    scoreboard players operation @s rb.health.max = @s rb.stat.vit
+    scoreboard players set #10 rb.stat.points 10
+    scoreboard players operation @s rb.health.max *= #10 rb.stat.points
+    scoreboard players add @s rb.health.max 100
+    scoreboard players operation @s rb.defence.base = @s rb.stat.vit
+
+
+function apply_intelligence:
+    scoreboard players operation @s rb.amp.magical = @s rb.stat.int
+    scoreboard players set #10 rb.stat.points 10
+    scoreboard players operation @s rb.amp.magical *= #10 rb.stat.points
+    scoreboard players add @s rb.amp.magical 100
+    scoreboard players operation @s rb.res.magical = @s rb.stat.int
+    scoreboard players set #2 rb.stat.points 2
+    scoreboard players operation @s rb.res.magical *= #2 rb.stat.points
+
+
+function apply_dexterity:
+    scoreboard players set @s rb.cooldown.end 60
+    scoreboard players operation #dex_reduction rb.stat.points = @s rb.stat.dex
+    scoreboard players set #5 rb.stat.points 5
+    scoreboard players operation #dex_reduction rb.stat.points *= #5 rb.stat.points
+    scoreboard players operation @s rb.cooldown.end -= #dex_reduction rb.stat.points
+    execute if score @s rb.cooldown.end matches ..9 run scoreboard players set @s rb.cooldown.end 10
+    scoreboard players operation @s rb.res.physical = @s rb.stat.dex
+    scoreboard players set #2 rb.stat.points 2
+    scoreboard players operation @s rb.res.physical *= #2 rb.stat.points
+
+
+function recalculate:
+    function rb:stats/apply_strength
+    function rb:stats/apply_vitality
+    function rb:stats/apply_intelligence
+    function rb:stats/apply_dexterity
+
+
+function allocate/strength:
+    execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.str 1
+    execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
+    execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
+    execute if score @s rb.stat.points matches 1.. run tellraw @s [{"text":"[Stats] +1 Strength (","color":"green"},{"score":{"name":"@s","objective":"rb.stat.str"},"color":"gold"},{"text":")","color":"green"}]
+    execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
+
+
+function allocate/vitality:
+    execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.vit 1
+    execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
+    execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
+    execute if score @s rb.stat.points matches 1.. run tellraw @s [{"text":"[Stats] +1 Vitality (","color":"green"},{"score":{"name":"@s","objective":"rb.stat.vit"},"color":"gold"},{"text":")","color":"green"}]
+    execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
+
+
+function allocate/intelligence:
+    execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.int 1
+    execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
+    execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
+    execute if score @s rb.stat.points matches 1.. run tellraw @s [{"text":"[Stats] +1 Intelligence (","color":"green"},{"score":{"name":"@s","objective":"rb.stat.int"},"color":"gold"},{"text":")","color":"green"}]
+    execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
+
+
+function allocate/dexterity:
+    execute if score @s rb.stat.points matches 1.. run scoreboard players add @s rb.stat.dex 1
+    execute if score @s rb.stat.points matches 1.. run scoreboard players remove @s rb.stat.points 1
+    execute if score @s rb.stat.points matches 1.. run function rb:stats/recalculate
+    execute if score @s rb.stat.points matches 1.. run tellraw @s [{"text":"[Stats] +1 Dexterity (","color":"green"},{"score":{"name":"@s","objective":"rb.stat.dex"},"color":"gold"},{"text":")","color":"green"}]
+    execute unless score @s rb.stat.points matches 1.. run tellraw @s [{"text":"No stat points available!","color":"red"}]
+
+
+function level_up:
+    scoreboard players add @s rb.level 1
+    scoreboard players add @s rb.stat.points 5
+    title @s title [{"text":"LEVEL UP!","color":"gold","bold":true}]
+    title @s subtitle [{"text":"Level ","color":"yellow"},{"score":{"name":"@s","objective":"rb.level"},"color":"gold"}]
+    particle happy_villager ~ ~1 ~ 0.5 0.5 0.5 0.1 50
+    playsound minecraft:entity.player.levelup player @s ~ ~ ~ 1 1.2
+    tellraw @s [{"text":"Level: ","color":"gray"},{"score":{"name":"@s","objective":"rb.level"},"color":"gold"}]
+    tellraw @s [{"text":"+5 Stat Points","color":"green"}]
+
+
+function show_stats:
+    tellraw @s [{"text":"━━━━━ YOUR STATS ━━━━━","color":"gold","bold":true}]
+    tellraw @s [{"text":"Level: ","color":"gray"},{"score":{"name":"@s","objective":"rb.level"},"color":"gold"}]
+    tellraw @s [{"text":"Available Points: ","color":"gray"},{"score":{"name":"@s","objective":"rb.stat.points"},"color":"green"}]
+    tellraw @s ""
+    tellraw @s [{"text":"STR: ","color":"red"},{"score":{"name":"@s","objective":"rb.stat.str"},"color":"gold"}]
+    tellraw @s [{"text":"VIT: ","color":"dark_red"},{"score":{"name":"@s","objective":"rb.stat.vit"},"color":"gold"}]
+    tellraw @s [{"text":"INT: ","color":"blue"},{"score":{"name":"@s","objective":"rb.stat.int"},"color":"gold"}]
+    tellraw @s [{"text":"DEX: ","color":"green"},{"score":{"name":"@s","objective":"rb.stat.dex"},"color":"gold"}]

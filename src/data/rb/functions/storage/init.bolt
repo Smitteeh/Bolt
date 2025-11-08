@@ -1,0 +1,26 @@
+# Storage Initialization
+# Initialize NBT storage structures
+
+# Abilities storage
+data merge storage abilities:stats {}
+data merge storage abilities:temp {}
+
+# NPC storage
+data merge storage npc:chats {}
+data merge storage temp:move {}
+
+# Weapons storage
+data merge storage weapons:data {}
+data merge storage weapons:temp {}
+
+# Enemies storage
+data merge storage enemies:data {}
+
+# Forloop storage
+data merge storage forloop:input {array:[], callback:""}
+data merge storage forloop:temp {index:0}
+
+# Player data storage
+data merge storage rb:players {cooldowns:{}}
+
+tellraw @a [{"text":"[RB] ","color":"gold"},{"text":"Storage initialized","color":"green"}]

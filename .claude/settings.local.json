@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(gh pr list:*)"
+      "Bash(gh pr list:*)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" auth status)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" repo create Bolt --source=. --public --push)",
+      "Bash(python -m pip:*)",
+      "Bash(python -m beet:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

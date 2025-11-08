@@ -1,0 +1,159 @@
+# Weapons System - Dynamic weapon generation from data
+
+# ============================================================================
+# WEAPON INITIALIZATION
+# ============================================================================
+
+function init:
+    """Initialize weapon data - generates all weapons from templates"""
+    # Weapon tiers with scaling stats
+    data merge storage weapons:data {
+        tiers: [
+            {tier: "wooden", base_damage: 1, attack_speed: 5, color: "gray"},
+            {tier: "stone", base_damage: 3, attack_speed: 5, color: "white"},
+            {tier: "iron", base_damage: 5, attack_speed: 6, color: "aqua"},
+            {tier: "gold", base_damage: 4, attack_speed: 8, color: "gold"},
+            {tier: "diamond", base_damage: 8, attack_speed: 6, color: "light_purple"}
+        ],
+        levels: [
+            {level: 1, damage_mult: 1.0, name_suffix: ""},
+            {level: 2, damage_mult: 1.3, name_suffix: " +1"},
+            {level: 3, damage_mult: 1.6, name_suffix: " +2"},
+            {level: 4, damage_mult: 2.0, name_suffix: " +3"}
+        ]
+    }
+
+    # Generate weapons
+    tellraw @a [{"text":"[Weapons] ","color":"gold"},{"text":"Generating weapon database...","color":"gray"}]
+
+
+# ============================================================================
+# WEAPON GIVING FUNCTIONS
+# ============================================================================
+
+function give/wooden_sword_1:
+    """Give Wooden Sword +0"""
+    give @s wooden_sword[
+        custom_name='{"text":"Wooden Sword","color":"gray","italic":false}',
+        enchantments={levels:{"rb:init_combat":1}},
+        custom_data={
+            weapon_tier: "wooden",
+            weapon_level: 1,
+            base_damage: 1,
+            damage_type: 0,
+            attack_speed: 5
+        }
+    ]
+
+
+function give/iron_sword_3:
+    """Give Iron Sword +2"""
+    give @s iron_sword[
+        custom_name='{"text":"Iron Sword +2","color":"aqua","italic":false,"bold":true}',
+        enchantments={levels:{"rb:init_combat":1}},
+        enchantment_glint_override=true,
+        custom_data={
+            weapon_tier: "iron",
+            weapon_level: 3,
+            base_damage: 8,
+            damage_type: 0,
+            attack_speed: 6
+        }
+    ]
+
+
+function give/diamond_sword_4:
+    """Give Diamond Sword +3 (Legendary)"""
+    give @s diamond_sword[
+        custom_name='{"text":"Legendary Diamond Sword +3","color":"gold","italic":false,"bold":true}',
+        lore=[
+            '{"text":"A weapon of legendary power","color":"gray","italic":true}',
+            '{"text":"Physical Damage: 16","color":"red"}',
+            '{"text":"Attack Speed: Fast","color":"green"}'
+        ],
+        enchantments={levels:{"rb:init_combat":1,sharpness:3}},
+        enchantment_glint_override=true,
+        custom_data={
+            weapon_tier: "diamond",
+            weapon_level: 4,
+            base_damage: 16,
+            damage_type: 0,
+            attack_speed: 6
+        }
+    ]
+
+
+function give/magic_staff:
+    """Give Magic Staff (Magical Damage)"""
+    give @s blaze_rod[
+        custom_name='{"text":"Arcane Staff","color":"light_purple","italic":false,"bold":true}',
+        lore=[
+            '{"text":"Channels magical energy","color":"gray","italic":true}',
+            '{"text":"Magical Damage: 12","color":"aqua"}',
+            '{"text":"Mana Cost: 10","color":"blue"}'
+        ],
+        enchantments={levels:{"rb:init_combat":1}},
+        enchantment_glint_override=true,
+        custom_data={
+            weapon_tier: "magical",
+            weapon_level: 3,
+            base_damage: 12,
+            damage_type: 1,
+            attack_speed: 7,
+            mana_cost: 10
+        }
+    ]
+
+
+# ============================================================================
+# WEAPON STATS LOADING
+# ============================================================================
+
+function load_weapon_stats:
+    """Load weapon stats from held item into scoreboard"""
+    # Get weapon data from held item
+    execute store result score @s base_damage run data get entity @s SelectedItem.components.minecraft:custom_data.base_damage
+    execute store result score @s damage_type run data get entity @s SelectedItem.components.minecraft:custom_data.damage_type
+
+    # Apply to combat system
+    execute if score @s base_damage matches 1.. run tellraw @s [{"text":"Weapon equipped: ","color":"gray"},{"nbt":"SelectedItem.components.minecraft:custom_name","entity":"@s","interpret":true}]
+
+
+# ============================================================================
+# WEAPON CRAFTING (Optional Extension)
+# ============================================================================
+
+function craft/upgrade_weapon:
+    """Upgrade a weapon to next level"""
+    # Check if holding weapon
+    execute unless data entity @s SelectedItem.components.minecraft:custom_data.weapon_level run return fail
+
+    # Get current level
+    execute store result score #level npc_id run data get entity @s SelectedItem.components.minecraft:custom_data.weapon_level
+
+    # Check max level
+    execute if score #level npc_id matches 4.. run return run tellraw @s [{"text":"Weapon is already max level!","color":"red"}]
+
+    # Increment level
+    scoreboard players add #level npc_id 1
+    execute store result storage weapons:temp new_level int 1 run scoreboard players get #level npc_id
+
+    # Increase damage (30% per level)
+    execute store result score #damage npc_id run data get entity @s SelectedItem.components.minecraft:custom_data.base_damage
+    scoreboard players operation #damage npc_id *= #130 npc_id
+    scoreboard players set #100 npc_id 100
+    scoreboard players operation #damage npc_id /= #100 npc_id
+    execute store result storage weapons:temp new_damage int 1 run scoreboard players get #damage npc_id
+
+    # Update item
+    function rb:weapons/apply_upgrade with storage weapons:temp
+
+    # Effects
+    playsound minecraft:block.anvil.use player @s ~ ~ ~ 1 1.2
+    particle enchant ~ ~1 ~ 0.5 0.5 0.5 1 50
+    tellraw @s [{"text":"Weapon upgraded to level ","color":"green"},{"score":{"name":"#level","objective":"npc.id"},"color":"gold","bold":true},{"text":"!","color":"green"}]
+
+
+function apply_upgrade:
+    """Apply upgrade values to held weapon"""
+    $item modify entity @s weapon.mainhand {function:"set_components",components:{"minecraft:custom_data":{weapon_level:$(new_level),base_damage:$(new_damage)}}}

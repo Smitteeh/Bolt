@@ -1,0 +1,21 @@
+# Universal For-Loop System
+# Note: This is a placeholder - complex loop iteration requires
+# either compile-time generation or manual unrolling in Bolt
+
+# Example of how to use execute-based iteration
+function example_loop:
+    # This demonstrates iterate-execute pattern
+    # For actual dynamic loops, use the original rb forloop system
+    scoreboard players set #counter forloop.counter 0
+    function rb:utils/forloop/iterate
+
+
+function iterate:
+    # Increment counter
+    scoreboard players add #counter forloop.counter 1
+
+    # Do something with current iteration
+    tellraw @a [{"text":"Loop iteration: ","color":"gray"},{"score":{"name":"#counter","objective":"forloop.counter"},"color":"gold"}]
+
+    # Continue if not done (max 10 iterations)
+    execute if score #counter forloop.counter matches ..9 run function rb:utils/forloop/iterate

@@ -1,0 +1,22 @@
+# Realms Beyond - Tick Function
+# Main game loop - runs every tick
+
+function tick:
+    # First join detection
+    execute as @a unless score @s player_id matches 0.. run function rb:player/first_join
+
+    # Combat system
+    execute as @a[scores={death_timer=1..}] run function rb:combat/death_timer
+    execute as @a at @s run function rb:combat/health_bar_update
+    execute as @a run function rb:combat/attack_cooldown
+
+    # Abilities
+    execute as @a[scores={is_casting=1}] run function rb:abilities/casting_tick
+    execute as @a[scores={spell_charge_time=1..}] run function rb:abilities/wand/charge_tick
+
+    # NPC system
+    execute as @e[type=interaction,tag=npc_interaction] at @s if data entity @s interaction run function rb:npc/interact
+    execute as @e[tag=npc_moving] at @s run function rb:npc/pathfinding/tick
+
+    # Character selection (only in selection area)
+    execute as @a[tag=in_selection] at @s run function rb:character_selection/tick

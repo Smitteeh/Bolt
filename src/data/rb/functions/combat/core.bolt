@@ -1,0 +1,219 @@
+# Combat System - Core
+# Custom stat-based damage calculation system
+# Scoreboards are initialized in rb:scoreboards/init
+
+# ============================================================================
+# INITIALIZATION
+# ============================================================================
+
+function init_player_combat:
+    scoreboard players set @s rb.health.current 100
+    scoreboard players set @s rb.health.max 100
+    scoreboard players set @s rb.damage.base 10
+    scoreboard players set @s rb.defence.base 5
+    scoreboard players set @s rb.amp.physical 100
+    scoreboard players set @s rb.amp.magical 100
+    scoreboard players set @s rb.res.physical 0
+    scoreboard players set @s rb.res.magical 0
+    give @s iron_sword[enchantments={levels:{"rb:init_combat":1}},custom_name='{"text":"Combat Blade","italic":false}']
+
+
+# ============================================================================
+# DAMAGE CALCULATION
+# ============================================================================
+
+function init_combat:
+    """Triggered by custom enchantment on post_attack"""
+    # Store attacker and victim
+    tag @s add attacker
+    tag @e[sort=nearest,limit=1,type=!#rb:non_damageable,distance=..6] add victim
+
+    # Calculate and apply damage
+    execute as @e[tag=victim,limit=1] run function rb:combat/hurt_entity
+
+    # Cleanup tags
+    tag @s remove attacker
+    tag @e[tag=victim] remove victim
+
+
+function hurt_entity:
+    """
+    Calculate and apply damage to victim based on attacker's stats.
+    Much cleaner than the original mcfunction version with Bolt's operators!
+    """
+    # Get attacker's stats
+    execute store result score #base_dmg dmg_calculation run scoreboard players get @p[tag=attacker] base_damage
+    execute store result score #damage_type dmg_calculation run scoreboard players get @p[tag=attacker] damage_type
+
+    # Get victim's defence
+    execute store result score #base_def dmg_calculation run scoreboard players get @s base_defence
+
+    # Calculate offense modifier (based on damage type)
+    execute if score #damage_type dmg_calculation matches 0 run scoreboard players operation #offense_mod dmg_calculation = @p[tag=attacker] physical_amp
+    execute if score #damage_type dmg_calculation matches 1 run scoreboard players operation #offense_mod dmg_calculation = @p[tag=attacker] magical_amp
+
+    # Calculate defence modifier (based on damage type)
+    execute if score #damage_type dmg_calculation matches 0 run scoreboard players operation #defence_mod dmg_calculation = @s physical_res
+    execute if score #damage_type dmg_calculation matches 1 run scoreboard players operation #defence_mod dmg_calculation = @s magical_res
+
+    # Apply offense amplifier: damage = base_damage * (offense_mod / 100)
+    scoreboard players operation #final_dmg dmg_calculation = #base_dmg dmg_calculation
+    scoreboard players operation #final_dmg dmg_calculation *= #offense_mod dmg_calculation
+    scoreboard players set #100 dmg_calculation 100
+    scoreboard players operation #final_dmg dmg_calculation /= #100 dmg_calculation
+
+    # Apply defence reduction: damage = damage - (defence * ((100 - resistance) / 100))
+    scoreboard players operation #defence_after_res dmg_calculation = #base_def dmg_calculation
+    scoreboard players set #100_temp dmg_calculation 100
+    scoreboard players operation #100_temp dmg_calculation -= #defence_mod dmg_calculation
+    scoreboard players operation #defence_after_res dmg_calculation *= #100_temp dmg_calculation
+    scoreboard players operation #defence_after_res dmg_calculation /= #100 dmg_calculation
+
+    # Final damage = attack - defence (minimum 1)
+    scoreboard players operation #final_dmg dmg_calculation -= #defence_after_res dmg_calculation
+    execute if score #final_dmg dmg_calculation matches ..0 run scoreboard players set #final_dmg dmg_calculation 1
+
+    # Apply damage to victim's health
+    scoreboard players operation @s current_health -= #final_dmg dmg_calculation
+
+    # Display damage
+    execute at @s run function rb:combat/display_damage
+
+    # Check for death
+    execute if score @s current_health matches ..0 run function rb:combat/on_death
+
+
+# ============================================================================
+# ATTACK COOLDOWN SYSTEM
+# ============================================================================
+
+function attack_cooldown:
+    """
+    Visual attack charge system - charges over time based on attack speed.
+    Shows charging progress on action bar.
+    """
+    # Get current game time
+    execute store result score @s current_time run time query gametime
+
+    # Check if cooldown has expired
+    execute if score @s cooldown_end <= @s current_time run function rb:combat/cooldown_ready
+    execute if score @s cooldown_end > @s current_time run function rb:combat/cooldown_charging
+
+
+function cooldown_ready:
+    """Display ready indicator"""
+    title @s actionbar [{"text":"⚔ ","color":"green"},{"text":"READY","color":"green","bold":true},{"text":" ⚔","color":"green"}]
+
+
+function cooldown_charging:
+    """Display charge progress bar"""
+    # Calculate progress percentage
+    scoreboard players operation #time_elapsed dmg_calculation = @s current_time
+    scoreboard players operation #time_elapsed dmg_calculation -= @s cooldown_end
+    scoreboard players operation #time_elapsed dmg_calculation *= #100 dmg_calculation
+    # Divide by cooldown duration to get percentage
+    scoreboard players operation #time_elapsed dmg_calculation /= #attack_speed_temp dmg_calculation
+
+    # Show progress bar (simplified - original had complex bar rendering)
+    execute if score #time_elapsed dmg_calculation matches 0..20 run title @s actionbar [{"text":"▯▯▯▯▯","color":"gray"}]
+    execute if score #time_elapsed dmg_calculation matches 21..40 run title @s actionbar [{"text":"▮","color":"yellow"},{"text":"▯▯▯▯","color":"gray"}]
+    execute if score #time_elapsed dmg_calculation matches 41..60 run title @s actionbar [{"text":"▮▮","color":"yellow"},{"text":"▯▯▯","color":"gray"}]
+    execute if score #time_elapsed dmg_calculation matches 61..80 run title @s actionbar [{"text":"▮▮▮","color":"yellow"},{"text":"▯▯","color":"gray"}]
+    execute if score #time_elapsed dmg_calculation matches 81..99 run title @s actionbar [{"text":"▮▮▮▮","color":"yellow"},{"text":"▯","color":"gray"}]
+
+
+# ============================================================================
+# HEALTH SYSTEM
+# ============================================================================
+
+function health_bar_update:
+    """Update visual health bar using text_display entities"""
+    # Find or create health bar display
+    execute unless entity @e[type=text_display,tag=health_bar,distance=..1] run summon text_display ~ ~2.5 ~ {Tags:["health_bar","new"],billboard:"vertical",text:'{"text":"❤ 100/100","color":"red"}'}
+
+    # Update position to follow player
+    execute as @e[type=text_display,tag=health_bar,distance=..2] at @s run tp @s ~ ~2.5 ~
+
+    # Update health text
+    execute if score @s current_health matches ..25 run data modify entity @e[type=text_display,tag=health_bar,distance=..2,limit=1] text set value '{"score":{"name":"@p","objective":"rb.health.current"},"color":"dark_red","bold":true}'
+    execute if score @s current_health matches 26..50 run data modify entity @e[type=text_display,tag=health_bar,distance=..2,limit=1] text set value '{"score":{"name":"@p","objective":"rb.health.current"},"color":"gold"}'
+    execute if score @s current_health matches 51.. run data modify entity @e[type=text_display,tag=health_bar,distance=..2,limit=1] text set value '{"score":{"name":"@p","objective":"rb.health.current"},"color":"red"}'
+
+
+function health_regen_loop:
+    """Passive health regeneration - runs every second"""
+    # Regen 1 HP per second for players not in combat
+    execute as @a unless score @s current_health >= @s max_health run scoreboard players add @s current_health 1
+
+    # Schedule next iteration
+    schedule function rb:combat/health_regen_loop 20t
+
+
+# ============================================================================
+# DEATH & RESPAWN
+# ============================================================================
+
+function on_death:
+    """Handle player death"""
+    # Set health to 0
+    scoreboard players set @s current_health 0
+
+    # Enter spectator mode
+    gamemode spectator @s
+
+    # Set death timer (100 ticks = 5 seconds)
+    scoreboard players set @s death_timer 100
+    scoreboard players set @s respawn_time 5
+
+    # Message
+    tellraw @s [{"text":"You died! Respawning in ","color":"red"},{"score":{"name":"@s","objective":"rb.respawn.time"},"color":"gold"},{"text":" seconds...","color":"red"}]
+
+    # Particles
+    execute at @s run particle minecraft:explosion ~ ~1 ~ 0.5 0.5 0.5 0.1 10
+
+
+function death_timer:
+    """Count down death timer"""
+    scoreboard players remove @s death_timer 1
+    scoreboard players operation @s respawn_time = @s death_timer
+    scoreboard players set #20 dmg_calculation 20
+    scoreboard players operation @s respawn_time /= #20 dmg_calculation
+
+    # Update countdown
+    execute if score @s death_timer matches 1.. run title @s title [{"text":"DEAD","color":"dark_red","bold":true}]
+    execute if score @s death_timer matches 1.. run title @s subtitle [{"text":"Respawning in ","color":"gray"},{"score":{"name":"@s","objective":"rb.respawn.time"},"color":"gold"},{"text":"s","color":"gray"}]
+
+    # Respawn when timer ends
+    execute if score @s death_timer matches 0 run function rb:combat/respawn
+
+
+function respawn:
+    """Respawn the player"""
+    # Reset health
+    scoreboard players operation @s current_health = @s max_health
+
+    # Teleport to spawn
+    execute in minecraft:overworld run tp @s 0 100 0
+
+    # Back to survival
+    gamemode survival @s
+
+    # Reset timer
+    scoreboard players reset @s death_timer
+
+    # Message
+    tellraw @s [{"text":"You have respawned!","color":"green","bold":true}]
+    title @s title [{"text":"RESPAWNED","color":"green","bold":true}]
+
+
+# ============================================================================
+# DISPLAY UTILITIES
+# ============================================================================
+
+function display_damage:
+    """Show damage number above damaged entity"""
+    # Create damage indicator
+    summon text_display ~ ~1 ~ {Tags:["damage_indicator","new"],billboard:"vertical",text:'{"score":{"name":"#final_dmg","objective":"rb.dmg.calc"},"color":"red","bold":true}',Rotation:[0.0f,0.0f]}
+
+    # Animate upward (handled by separate system)
+    tag @e[type=text_display,tag=new] remove new
